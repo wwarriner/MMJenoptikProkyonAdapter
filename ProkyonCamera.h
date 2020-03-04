@@ -7,6 +7,11 @@
 #include "MMDevice/ImgBuffer.h"
 #include "MMDevice/DeviceThreads.h"
 
+#include "dij_interface.h"
+
+#include <memory>
+#include <string>
+
 class ProkyonCamera : public CCameraBase<ProkyonCamera>
 {
 public:
@@ -60,6 +65,38 @@ public:
     int ClearExposureSequence();
     int AddToExposureSequence(double exposureTime_ms);
     int SendExposureSequence() const;
+
+private:
+    DijSDK_Handle create_handle() const;
+    bool handle_valid() const;
+    const DijSDK_Handle handle() const;
+    DijSDK_Handle handle();
+
+    bool interface_valid() const;
+    DijInterface *const dijint() const;
+    DijInterface *dijint();
+
+    DijSDK_Handle m_handle;
+    const std::unique_ptr<DijInterface> m_p_interface;
+    bool m_initialized;
+
+    static const unsigned int M_S_EXPECTED_CAMERA_COUNT = 1;
+    static const std::string M_S_CAMERA_NAME;
+
+    // debug
+    struct Parameter
+    {
+        std::string name;
+        DijSDK_EParamId id;
+    };
+    /*
+    Returns E_FAIL if camera handle not found
+    */
+    void LogProperties() const;
+    /*
+    Returns E_OK if supported, E_DIJSDK_PARAMETER_NOT_AVAILABLE_ if not supported, E_FAIL if camera unavailable
+    */
+    void LogProperty(const Parameter parameter) const;
 };
 
 #endif
