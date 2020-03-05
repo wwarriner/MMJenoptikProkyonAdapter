@@ -10,11 +10,16 @@
 #include <memory>
 #include <string>
 
+typedef char DijSDK_CameraKey[33];
+enum DijSDK_EParamId;
+typedef void *DijSDK_Handle;
+
+
 class ProkyonCamera : public CCameraBase<ProkyonCamera>
 {
 public:
     ProkyonCamera();
-    ~ProkyonCamera();
+    //~ProkyonCamera();
 
     // device
     int Initialize();
@@ -23,7 +28,7 @@ public:
 
     // camera
     int SnapImage();
-    const unsigned char *GetImageBuffer();
+    /*const unsigned char *GetImageBuffer();
     const unsigned char *GetImageBuffer(unsigned channelNr);
     const unsigned int *GetImageBufferAsRGB32();
     unsigned GetNumberOfComponents() const;
@@ -62,7 +67,7 @@ public:
     int StopExposureSequence();
     int ClearExposureSequence();
     int AddToExposureSequence(double exposureTime_ms);
-    int SendExposureSequence() const;
+    int SendExposureSequence() const;*/
 
 private:
     DijSDK_Handle create_handle() const;

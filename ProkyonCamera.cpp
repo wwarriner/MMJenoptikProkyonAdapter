@@ -92,6 +92,7 @@ int ProkyonCamera::SnapImage()
     // copy image data to local image buffer
     // DijSDK_ReleaseImage();
     // DijSDK_AbortAcquisition() if required;
+    return 0;
 }
 
 // private
@@ -133,6 +134,7 @@ DijSDK_Handle ProkyonCamera::create_handle() const
         ss << "Unable to create handle to camera." << std::endl;
         LogMessage(ss.str(), true);
     }
+    return handle;
 }
 
 bool ProkyonCamera::handle_valid() const
