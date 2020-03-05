@@ -1,0 +1,25 @@
+To build this project requires the following installed:
+
+- Install Jenoptik DijSDK:
+    - https://www.jenoptik.com/products/cameras-and-imaging-modules/microscope-cameras/progres-gryphax-usb-30-microscope-workstation/registration-software-download
+- Clone micromanager source:
+    - https://github.com/micro-manager/micro-manager
+- Clone this repo:
+    - https://github.com/wwarriner/MMJenoptikProkyonAdapter
+- Install VS 2019
+    - https://visualstudio.microsoft.com/vs/
+    - C++ Workflow
+- (MAYBE NOT THIS) Windows 7.1 SDK
+    - Install in the following order!
+    - SDK: http://www.microsoft.com/en-us/download/details.aspx?id=8279
+    - VC++ 10.0: https://www.visualstudio.com/vs/older-downloads/
+    - VC++ 10.0 SP1: https://www.visualstudio.com/vs/older-downloads/
+    - VC++ 10.0 Compiler Update: http://www.microsoft.com/en-us/download/details.aspx?id=4422
+
+See here for requirements of MicroManager.
+https://micro-manager.org/wiki/Building_MM_on_Windows
+
+
+Install instructions:
+- Place .dll into MM root, e.g. "C:\Program Files\Micro-Manager-2.0gamma"
+- Add Jenoptik SDK bin folder to PATH
