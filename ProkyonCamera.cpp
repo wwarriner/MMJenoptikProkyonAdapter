@@ -20,7 +20,6 @@ ProkyonCamera::ProkyonCamera() : m_handle{ nullptr },
 int ProkyonCamera::Initialize()
 {
     // TODO unspaghettify this
-    assert(interface_valid());
     int out = DEVICE_OK;
     if (!m_initialized)
     {
@@ -55,7 +54,6 @@ int ProkyonCamera::Initialize()
 
 int ProkyonCamera::Shutdown()
 {
-    assert(interface_valid());
     int out = DEVICE_OK;
     if (m_initialized)
     {
