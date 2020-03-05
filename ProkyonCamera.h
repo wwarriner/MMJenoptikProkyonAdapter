@@ -7,8 +7,6 @@
 #include "MMDevice/ImgBuffer.h"
 #include "MMDevice/DeviceThreads.h"
 
-#include "dij_interface.h"
-
 #include <memory>
 #include <string>
 
@@ -72,15 +70,11 @@ private:
     const DijSDK_Handle handle() const;
     DijSDK_Handle handle();
 
-    bool interface_valid() const;
-    DijInterface *const dijint() const;
-    DijInterface *dijint();
-
     DijSDK_Handle m_handle;
-    const std::unique_ptr<DijInterface> m_p_interface;
     bool m_initialized;
 
-    static const unsigned int M_S_EXPECTED_CAMERA_COUNT = 1;
+    static const DijSDK_CameraKey M_S_KEY;
+    static const unsigned int M_S_EXPECTED_CAMERA_COUNT;
     static const std::string M_S_CAMERA_NAME;
 
     // debug

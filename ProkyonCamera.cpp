@@ -12,7 +12,7 @@
 
 // TODO run DijSDK_HasParameter() over all params to get info on camera
 
-ProkyonCamera::ProkyonCamera() : m_p_interface(std::make_unique<DijInterface>()),
+ProkyonCamera::ProkyonCamera() : m_handle{ nullptr },
                                  m_initialized{false}
 {
 }
@@ -24,7 +24,7 @@ int ProkyonCamera::Initialize()
     int out = DEVICE_OK;
     if (!m_initialized)
     {
-        auto result = DijSDK_Init(&(dijint()->m_s_key), 1);
+        auto result = DijSDK_Init(&M_S_KEY, 1);
         if (IS_OK(result))
         {
             m_handle = create_handle();
@@ -152,21 +152,8 @@ DijSDK_Handle ProkyonCamera::handle()
     return m_handle;
 }
 
-bool ProkyonCamera::interface_valid() const
-{
-    return m_p_interface != nullptr;
-}
-
-DijInterface *const ProkyonCamera::dijint() const
-{
-    return m_p_interface.get();
-}
-
-DijInterface *ProkyonCamera::dijint()
-{
-    return m_p_interface.get();
-}
-
+const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774Bf12B70452BF23"};
+const unsigned int ProkyonCamera::M_S_EXPECTED_CAMERA_COUNT{ 1 };
 const std::string ProkyonCamera::M_S_CAMERA_NAME{"Prokyon"};
 
 // debug
