@@ -84,6 +84,7 @@ private:
 	static const unsigned int M_S_EXPECTED_CAMERA_COUNT;
 	static const std::string M_S_CAMERA_NAME;
 	static const std::string M_S_CAMERA_DESCRIPTION;
+	static const std::vector<unsigned char> M_S_TEST_IMAGE;
 
 	// debug
 	struct Parameter {
