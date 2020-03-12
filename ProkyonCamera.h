@@ -27,12 +27,12 @@ public:
 	// camera
 	int SnapImage();
 	const unsigned char *GetImageBuffer();
-	const unsigned char *GetImageBuffer(unsigned channelNr);
-	const unsigned int *GetImageBufferAsRGB32();
+	// const unsigned char *GetImageBuffer(unsigned channelNr); // DEFINED IN DeviceBase.h
+	// const unsigned int *GetImageBufferAsRGB32(); // DEFINED IN DeviceBase.h
 	unsigned GetNumberOfComponents() const;
 	int GetComponentName(unsigned component, char *name);
-	unsigned GetNumberOfChannels() const;
-	int GetChannelName(unsigned channel, char *name);
+	// unsigned GetNumberOfChannels() const; // DEFINED IN DeviceBase.h
+	// int GetChannelName(unsigned channel, char *name); // DEFINED IN DeviceBase.h
 	long GetImageBufferSize() const;
 	unsigned GetImageWidth() const;
 	unsigned GetImageHeight() const;

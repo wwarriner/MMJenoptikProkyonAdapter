@@ -113,39 +113,14 @@ const unsigned char *ProkyonCamera::GetImageBuffer() {
 	return nullptr;
 }
 
-const unsigned char *ProkyonCamera::GetImageBuffer(unsigned channelNr) {
-	// TODO
-	return nullptr;
-}
-
-const unsigned int *ProkyonCamera::GetImageBufferAsRGB32() {
-	// TODO
-	return nullptr;
-}
-
 unsigned ProkyonCamera::GetNumberOfComponents() const {
 	// TODO check meaning of this
 	return 1;
 }
 
 int ProkyonCamera::GetComponentName(unsigned component, char *name) {
-	// TODO check meaning of this
-	if (component != 0) {
-		return DEVICE_NONEXISTENT_CHANNEL;
-	}
-	else {
-		CDeviceUtils::CopyLimitedString(name, "RGB");
-		return DEVICE_OK;
-	}
-}
-
-unsigned ProkyonCamera::GetNumberOfChannels() const {
-	return 3;
-}
-
-int ProkyonCamera::GetChannelName(unsigned channel, char *name) {
 	std::string out{""};
-	switch (channel) {
+	switch (component) {
 		case 0:
 			out = "Red";
 			break;
