@@ -82,14 +82,13 @@ namespace Prokyon {
         const DijSDK_Handle handle() const;
         DijSDK_Handle handle();
 
-        int initialize_image_buffer() const;
+        int initialize_image_buffer();
 
         int log_error(const char *func, const int line, const std::string &message = "") const;
 
         DijSDK_Handle m_handle;
         bool m_initialized;
         ImgBuffer m_image;
-        Parameters m_parameters;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;

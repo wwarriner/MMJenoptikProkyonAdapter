@@ -39,8 +39,7 @@ namespace Prokyon {
 
     ProkyonCamera::ProkyonCamera() : m_handle{nullptr},
         m_initialized{false},
-        m_image{ImgBuffer()},
-        m_parameters{Parameters()}
+        m_image{ImgBuffer()}
     {
     }
 
@@ -319,7 +318,6 @@ namespace Prokyon {
 
         // Opens first camera
         DijSDK_OpenCamera(cam_guid[0], &m_handle);
-        m_parameters = Parameters(m_handle);
         return DEVICE_OK;
     }
 
@@ -344,7 +342,7 @@ namespace Prokyon {
             return DEVICE_ERR;
         }
 
-        auto result = DijSDK_Exit();
+        result = DijSDK_Exit();
         if (!IS_OK(result)) {
             std::stringstream ss;
             ss << "Error shutting down DijSDK for " << M_S_CAMERA_NAME << std::endl;
@@ -370,7 +368,7 @@ namespace Prokyon {
         return m_handle;
     }
 
-    int ProkyonCamera::initialize_image_buffer() const {
+    int ProkyonCamera::initialize_image_buffer() {
         if (!handle_valid()) {
             //return log_error(__func__, __LINE__);
             m_image = ImgBuffer(15, 15, 4);
@@ -380,9 +378,6 @@ namespace Prokyon {
         if (!IS_OK(result)) {
             return log_error(__func__, __LINE__);
         }
-
-        int channel_count;
-        auto result
     }
 
     int ProkyonCamera::log_error(const char *func, const int line, const std::string &message) const {
@@ -392,7 +387,7 @@ namespace Prokyon {
             ss << message << std::endl;
         }
         LogMessage(ss.str().c_str(), true);
-        return DEVICE_ERR
+        return DEVICE_ERR;
     }
 
     const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774Bf12B70452BF23"};
@@ -524,7 +519,7 @@ namespace Prokyon {
         }
     }
 
-    void ProkyonCamera::LogProperty(const Parameter parameter) const {
+    void ProkyonCamera::LogProperty(const SDKParameter parameter) const {
         error_t out = -1024;
         if (handle_valid()) {
             out = DijSDK_HasParameter(m_handle, parameter.id);

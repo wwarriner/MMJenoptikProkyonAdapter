@@ -149,10 +149,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Image.cpp" />
     <ClCompile Include="Parameters.cpp" />
     <ClCompile Include="ProkyonCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dijsdk.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Image.h" />
+    <ClInclude Include="ImageInterface.h" />
+    <ClInclude Include="parameterif.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Parameters.h" />
     <ClInclude Include="ProkyonCamera.h" />
   </ItemGroup>

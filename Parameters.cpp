@@ -4,79 +4,33 @@
 #include "parameterif.h"
 
 #include <algorithm>
-#include <vector>
 
 namespace Prokyon {
-    Parameters::Parameters(DijSDK_Handle handle) : Parameters() {
-        auto raw_available_formats = new int[];
-        unsigned int format_count = 0;
-        auto result = DijSDK_GetParameterSpec(handle, ParameterIdImageProcessingOutputFormat, nullptr, nullptr, nullptr, nullptr, raw_values, &value_count);
-        std::vector<int> i_formats(raw_available_formats, raw_available_formats + format_count);
-        delete[] raw_available_formats;
-        if (!IS_OK(result)) {
-            return;
-        }
-        std::vector<DijSDK_EImageFormat> available_formats;
-        for (const auto format : i_formats) {
-            available_formats.push_back(static_cast<DijSDK_EImageFormat>(format));
-        }
-
-        std::vector<DijSDK_EImageFormat> priorities{
-            DijSDK_EImageFormatRGB161616,
-            DijSDK_EImageFormatRGB888,
-            DijSDK_EImageFormatGrey16,
-            DijSDK_EImageFormatGrey8
-        };
-        Format pick = Format{0, 0, 0};
-        for (const auto priority : M_S_FORMATS) {
-            auto itr = std::find(available_formats.cbegin(), available_formats.cend(), priority.first);
-            if (itr != available_formats.cend()) {
-                pick = priority.second;
-                break;
-            }
-        }
-
-        const unsigned int dimension = 2;
-        int raw_shape[dimension];
-        result = DijSDK_GetIntParameter(handle, ParameterIdSensorSize, raw_shape, dimension);
-        if (!IS_OK(result)) {
-            return;
-        }
-        m_shape = Shape{raw_shape[0], raw_shape[1]};
-        m_bytes_per_pixel = pick.bytes_per_pixel;
-        m_bit_depth = pick.bit_depth;
-        m_channels = pick.channels;
+    StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, const unsigned int length) {
+        std::vector<char> value;
+        value.reserve(length);
+        auto result = DijSDK_GetStringParameter(handle, param_id, value.data(), length);
+        return {std::string(value.cbegin(), value.cend()), result};
     }
 
-    Parameters::Parameters() :m_shape{0, 0}, m_bytes_per_pixel{0}, m_bit_depth{0}, m_channels{0} {
+    template<>
+    error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, double *pValue, unsigned int num, DijSDK_EParamQuery query) {
+        return DijSDK_GetDoubleParameter(handle, paramId, pValue, num, query);
     }
 
-    unsigned Parameters::width() const {
-        return m_shape[0];
+    template<>
+    error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num, DijSDK_EParamQuery query) {
+        return DijSDK_GetIntParameter(handle, paramId, pValue, num, query);
     }
 
-    unsigned Parameters::height() const {
-        return m_shape[1];
+    typename std::make_unsigned<int>::type to_unsigned(const int signed_value) {
+        return static_cast<typename std::make_unsigned<int>::type>(signed_value);
     }
 
-    unsigned Parameters::bytes_per_pixel() const {
-        return m_bytes_per_pixel;
+    std::vector<typename std::make_unsigned<int>::type> to_unsigned(const std::vector<int> &signed_value) {
+        std::vector<typename std::make_unsigned<int>::type> unsigned_value;
+        auto transform_function = [](const int v) -> typename std::make_unsigned<int>::type {to_unsigned(v); };
+        std::transform(signed_value.cbegin(), signed_value.cend(), unsigned_value.begin(), transform_function);
+        return unsigned_value;
     }
-
-    unsigned Parameters::bit_depth() const {
-        return m_bit_depth;
-    }
-
-    unsigned Parameters::channels() const {
-        return m_channels;
-    }
-
-    // private
-
-    std::map<DijSDK_EImageFormat, Parameters::Format> Parameters::M_S_FORMATS{
-        {DijSDK_EImageFormatRGB161616, Format{6, 16, 3}},
-        {DijSDK_EImageFormatRGB888, Format{3, 8, 3}},
-        {DijSDK_EImageFormatGrey16, Format{2, 16, 1}},
-        {DijSDK_EImageFormatGrey8, Format{1, 8, 1}},
-    };
 }
