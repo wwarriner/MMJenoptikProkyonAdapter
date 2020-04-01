@@ -29,7 +29,7 @@ namespace Prokyon {
 
     std::vector<typename std::make_unsigned<int>::type> to_unsigned(const std::vector<int> &signed_value) {
         std::vector<typename std::make_unsigned<int>::type> unsigned_value;
-        auto transform_function = [](const int v) -> typename std::make_unsigned<int>::type {to_unsigned(v); };
+        auto transform_function = [](const int v) -> typename std::make_unsigned<int>::type {return to_unsigned(v); };
         std::transform(signed_value.cbegin(), signed_value.cend(), unsigned_value.begin(), transform_function);
         return unsigned_value;
     }
