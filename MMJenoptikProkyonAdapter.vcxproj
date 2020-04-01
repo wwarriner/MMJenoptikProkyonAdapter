@@ -152,6 +152,7 @@
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="Parameters.cpp" />
     <ClCompile Include="ProkyonCamera.cpp" />
+    <ClCompile Include="TestImage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dijsdk.h">
@@ -164,6 +165,7 @@
     </ClInclude>
     <ClInclude Include="Parameters.h" />
     <ClInclude Include="ProkyonCamera.h" />
+    <ClInclude Include="TestImage.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\micro-manager\MMDevice\MMDevice-SharedRuntime.vcxproj">

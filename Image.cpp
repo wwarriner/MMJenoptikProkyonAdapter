@@ -10,7 +10,7 @@
 
 namespace Prokyon {
     // public member functions
-    Image::Image(DijSDK_Handle camera) :
+    Image::Image(CameraHandle camera) :
         m_handle{nullptr},
         m_p_data{nullptr},
         m_component_count{0},
@@ -18,7 +18,7 @@ namespace Prokyon {
         m_component_names{NameMap()},
         m_size{0, 0}
     {
-        DijSDK_Handle image_handle;
+        ImageHandle image_handle;
         void *p_raw_data = nullptr;
         DijSDK_GetImage(camera, &image_handle, &p_raw_data);
 
@@ -29,7 +29,7 @@ namespace Prokyon {
         auto size = get_size(image_handle);
 
         m_handle = image_handle;
-        m_p_data = static_cast<unsigned char *>(p_raw_data);
+        m_p_data = static_cast<ImageBuffer>(p_raw_data);
         m_component_count = component_count;
         m_bits_per_channel = bits_per_channel;
         m_component_names = component_names;
@@ -84,11 +84,11 @@ namespace Prokyon {
     }
 
     // private static member functions
-    DijSDK_EImageFormat Image::get_format_id(DijSDK_Handle image) {
+    DijSDK_EImageFormat Image::get_format_id(ImageHandle image) {
         assert(image != nullptr);
         auto p = get_numeric_parameter<int>(image, ParameterIdImageProcessingOutputFormat, 1);
         if (p.error) {
-            // handle error
+            // TODO handle error
         }
         assert(!p.value.empty());
         return static_cast<DijSDK_EImageFormat>(p.value[0]);
@@ -152,11 +152,11 @@ namespace Prokyon {
         return bits_per_channel;
     }
 
-    std::vector<unsigned> Image::get_size(DijSDK_Handle image) {
+    std::vector<unsigned> Image::get_size(ImageHandle image) {
         assert(image != nullptr);
         auto p = get_numeric_parameter<int>(image, ParameterIdImageProcessingOutputFormat, 2);
         if (p.error) {
-            // handle error
+            // TODO handle error
         }
         assert(p.value.size() == 2);
         return to_unsigned(p.value);

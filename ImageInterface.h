@@ -8,14 +8,16 @@
 namespace Prokyon {
     class ImageInterface {
     public:
-        virtual const unsigned char *GetImageBuffer() const = 0;
-        virtual unsigned GetNumberOfComponents() const = 0;
-        virtual std::string GetComponentName(unsigned component) const = 0;
-        virtual long GetImageBufferSize() const = 0;
-        virtual unsigned GetImageWidth() const = 0;
-        virtual unsigned GetImageHeight() const = 0;
-        virtual unsigned GetImageBytesPerPixel() const = 0;
-        virtual unsigned GetBitDepth() const = 0;
+        virtual ~ImageInterface() = default;
+
+        virtual const unsigned char *get_image_buffer() const = 0;
+        virtual unsigned get_number_of_components() const = 0;
+        virtual std::string get_component_name(unsigned component) const = 0;
+        virtual long get_image_buffer_size() const = 0;
+        virtual unsigned get_image_width() const = 0;
+        virtual unsigned get_image_height() const = 0;
+        virtual unsigned get_image_bytes_per_pixel() const = 0;
+        virtual unsigned get_bit_depth() const = 0;
         // get metadata??
     };
 }

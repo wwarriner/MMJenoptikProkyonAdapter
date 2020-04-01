@@ -4,20 +4,23 @@
 #define PROKYONCAMERA_H_
 
 #include "MMDevice/DeviceBase.h"
-#include "MMDevice/ImgBuffer.h"
 #include "MMDevice/DeviceThreads.h"
 
+#include "ImageInterface.h"
 #include "Parameters.h"
 
 #include <array>
 #include <memory>
 #include <string>
 
-typedef char DijSDK_CameraKey[33];
 enum DijSDK_EParamId : int;
-typedef void *DijSDK_Handle;
+using DijSDK_CameraKey = char[33];
+using DijSDK_Handle = void *;
 
 namespace Prokyon {
+    using CameraHandle = DijSDK_Handle;
+    using ImageBuf = ImageInterface *;
+
     class ProkyonCamera : public CCameraBase<ProkyonCamera> {
     public:
         ProkyonCamera();
@@ -78,17 +81,17 @@ namespace Prokyon {
     private:
         int create_handle();
         int destroy_handle();
-        bool handle_valid() const;
-        const DijSDK_Handle handle() const;
-        DijSDK_Handle handle();
-
-        int initialize_image_buffer();
+        bool valid() const;
+        const CameraHandle cam() const;
+        CameraHandle cam();
+        ImageInterface *const img() const;
+        ImageInterface *img();
 
         int log_error(const char *func, const int line, const std::string &message = "") const;
 
-        DijSDK_Handle m_handle;
+        CameraHandle m_camera_handle;
         bool m_initialized;
-        ImgBuffer m_image;
+        std::unique_ptr<ImageInterface> m_p_image;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;
