@@ -18,28 +18,27 @@ namespace Prokyon {
         std::vector<T> value;
         error_t error;
     };
+    template<typename T>
+    NumericParameter<T> get_numeric_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, const unsigned int length, DijSDK_EParamQuery query = DijSDK_EParamQueryCurrent);
 
     struct StringParameter {
         std::string value;
         error_t error;
     };
-
-    template<typename T>
-    NumericParameter<T> get_numeric_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, const unsigned int length, DijSDK_EParamQuery query = DijSDK_EParamQueryCurrent);
     StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, const unsigned int length);
+
+    // private
     template<typename T>
     error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, T *pValue, unsigned int num, DijSDK_EParamQuery query = DijSDK_EParamQueryCurrent);
     template<>
     error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num, DijSDK_EParamQuery query);
     template<>
     error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, double *pValue, unsigned int num, DijSDK_EParamQuery query);
-
     typename std::make_unsigned<int>::type to_unsigned(const int signed_value);
-
     std::vector<typename std::make_unsigned<int>::type> to_unsigned(const std::vector<int> &signed_value);
 }
 
-// template
+// template implementation
 namespace Prokyon {
     template<typename T>
     NumericParameter<T> get_numeric_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, const unsigned int length, DijSDK_EParamQuery query) {
