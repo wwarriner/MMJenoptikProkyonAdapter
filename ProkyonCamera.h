@@ -4,7 +4,6 @@
 #define PROKYONCAMERA_H_
 
 #include "MMDevice/DeviceBase.h"
-#include "MMDevice/DeviceThreads.h"
 
 #include "CommonDef.h"
 #include "ImageInterface.h"
@@ -28,6 +27,7 @@ namespace Prokyon {
         //~ProkyonCamera();
 
         // device
+        int Initialize();               // done
         int Initialize(); // done
         int Shutdown(); // done
         void GetName(char *name) const; // done
@@ -46,7 +46,7 @@ namespace Prokyon {
         unsigned GetImageHeight() const;
         unsigned GetImageBytesPerPixel() const;
         unsigned GetBitDepth() const;
-        // double GetPixelSizeUm() const; // DEFINED IN DeviceBase.h
+        double GetPixelSizeUm() const;
         int GetBinning() const;
         int SetBinning(int binSize);
         void SetExposure(double exp_ms);
@@ -54,14 +54,14 @@ namespace Prokyon {
         int SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize);
         int GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ySize);
         int ClearROI();
-        bool SupportsMultiROI();
-        bool IsMultiROISet();
-        int GetMultiROICount(unsigned &count);
-        int SetMultiROI(const unsigned *xs, const unsigned *ys, const unsigned *widths, const unsigned *heights, unsigned numROIs);
-        int GetMultiROI(unsigned *xs, unsigned *ys, unsigned *widths, unsigned *heights, unsigned *length);
+        //bool SupportsMultiROI(); // DEFINED IN DeviceBase.h, not supported by default
+        //bool IsMultiROISet(); // DEFINED IN DeviceBase.h, not supported by default
+        //int GetMultiROICount(unsigned &count); // DEFINED IN DeviceBase.h, not supported by default
+        //int SetMultiROI(const unsigned *xs, const unsigned *ys, const unsigned *widths, const unsigned *heights, unsigned numROIs); // DEFINED IN DeviceBase.h, not supported by default
+        //int GetMultiROI(unsigned *xs, unsigned *ys, unsigned *widths, unsigned *heights, unsigned *length); // DEFINED IN DeviceBase.h, not supported by default
         int StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow);
-        int StartSequenceAcquisition(double interval_ms);
-        int StopSequenceAcquisition();
+        //int StartSequenceAcquisition(double interval_ms); // DEFINED IN DeviceBase.h
+        //int StopSequenceAcquisition(); // DEFINED IN DeviceBase.h
         int PrepareSequenceAcqusition();
         bool IsCapturing();
         // void GetTags(char *serializedMetadata); // DEFINED IN DeviceBase.h
@@ -84,6 +84,8 @@ namespace Prokyon {
 
         std::unique_ptr<Camera> m_p_camera;
         std::unique_ptr<ImageInterface> m_p_image;
+        std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
+        std::unique_ptr<RegionOfInterest> m_p_roi;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;
@@ -96,14 +98,14 @@ namespace Prokyon {
             DijSDK_EParamId id;
         };
         /*
-        Returns E_FAIL if camera handle not found
-        */
+                    Returns E_FAIL if camera handle not found
+                    */
         void LogProperties() const;
         /*
-        Returns E_OK if supported, E_DIJSDK_PARAMETER_NOT_AVAILABLE_ if not supported, E_FAIL if camera unavailable
-        */
+                    Returns E_OK if supported, E_DIJSDK_PARAMETER_NOT_AVAILABLE_ if not supported, E_FAIL if camera unavailable
+                    */
         void LogProperty(const SDKParameter parameter) const;
     };
-}
+} // namespace Prokyon
 
 #endif

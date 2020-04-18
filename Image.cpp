@@ -16,17 +16,18 @@ namespace Prokyon {
         m_component_count{0},
         m_bits_per_channel{0},
         m_component_names{NameMap()},
-        m_size{0, 0}
+        m_size{0, 0},
+        m_pixel_size_um{0.0}
     {
         ImageHandle image_handle;
         void *p_raw_data = nullptr;
         DijSDK_GetImage(camera, &image_handle, &p_raw_data);
 
-        auto format_id = get_format_id(image_handle);
-        auto component_count = get_component_count(format_id);
-        auto bits_per_channel = get_bits_per_channel(format_id);
-        auto component_names = get_component_name_map(format_id);
+        auto component_count = get_component_count(image_handle);
+        auto component_names = get_component_name_map(component_count);
+        auto bits_per_channel = get_bits_per_channel(image_handle);
         auto size = get_size(image_handle);
+        auto pixel_size_um = get_pixel_size_um(image_handle);
 
         m_handle = image_handle;
         m_p_data = static_cast<ImageBuffer>(p_raw_data);
@@ -34,12 +35,17 @@ namespace Prokyon {
         m_bits_per_channel = bits_per_channel;
         m_component_names = component_names;
         m_size = size;
+        m_pixel_size_um = pixel_size_um;
     }
 
     Image::~Image() {
         DijSDK_ReleaseImage(m_handle);
         m_handle = nullptr;
         m_p_data = nullptr;
+    }
+
+    const unsigned char *Image::get_image_buffer() {
+        return static_cast<const Image *>(this)->get_image_buffer();
     }
 
     const unsigned char *Image::get_image_buffer() const {
@@ -83,90 +89,74 @@ namespace Prokyon {
         return m_bits_per_channel;
     }
 
-    // private static member functions
-    DijSDK_EImageFormat Image::get_format_id(ImageHandle image) {
+    double Image::get_pixel_size_um() const {
+        assert(0.0 < m_pixel_size_um);
+        return m_pixel_size_um;
+    }
+
+    unsigned Image::get_component_count(ImageHandle image) {
         assert(image != nullptr);
-        auto p = get_numeric_parameter<int>(image, ParameterIdImageProcessingOutputFormat, 1);
+        auto p = get_numeric_parameter<int>(image, ParameterIdSensorColorChannels, 1);
         if (p.error) {
             // TODO handle error
         }
-        assert(!p.value.empty());
-        return static_cast<DijSDK_EImageFormat>(p.value[0]);
+        auto count = to_unsigned(p.value.at(0));
+        assert(count == 1 || count == 4);
+        return count;
     }
 
-    unsigned Image::get_component_count(DijSDK_EImageFormat format_id) {
-        unsigned component_count = 0;
-        switch (format_id) {
-            // case DijSDK_EImageFormatGreyRaw16: UNSUPPORTED
-            // case DijSDK_EImageFormatBayerRaw16: UNSUPPORTED
-            case DijSDK_EImageFormatRGB888:
-            case DijSDK_EImageFormatRGB161616:
-                component_count = 3;
-                break;
-            case DijSDK_EImageFormatGrey8:
-            case DijSDK_EImageFormatGrey16:
-                component_count = 1;
-                break;
-            default:
-                assert(false);
-        }
-        return component_count;
-    }
-
-    Image::NameMap Image::get_component_name_map(DijSDK_EImageFormat format_id) {
-        auto map = NameMap();
-        switch (format_id) {
-            // case DijSDK_EImageFormatGreyRaw16: UNSUPPORTED
-            // case DijSDK_EImageFormatBayerRaw16: UNSUPPORTED
-            case DijSDK_EImageFormatRGB888:
-            case DijSDK_EImageFormatRGB161616:
-                map = M_S_RGB_COMPONENT_NAMES;
-                break;
-            case DijSDK_EImageFormatGrey8:
-            case DijSDK_EImageFormatGrey16:
+    Image::NameMap Image::get_component_name_map(unsigned count) {
+        assert(count == 1 || count == 4);
+        NameMap map;
+        switch (count) {
+            case 1:
                 map = M_S_GRAY_COMPONENT_NAMES;
                 break;
+            case 4:
+                map = M_S_RGBA_COMPONENT_NAMES;
+                break;
             default:
                 assert(false);
         }
-        assert(!map.empty());
+        assert(map.size() == count);
         return map;
     }
 
-    unsigned Image::get_bits_per_channel(DijSDK_EImageFormat format_id) {
-        unsigned bits_per_channel = 0;
-        switch (format_id) {
-            // case DijSDK_EImageFormatGreyRaw16: UNSUPPORTED
-            // case DijSDK_EImageFormatBayerRaw16: UNSUPPORTED
-            case DijSDK_EImageFormatRGB888:
-            case DijSDK_EImageFormatGrey8:
-                bits_per_channel = 8;
-                break;
-            case DijSDK_EImageFormatRGB161616:
-            case DijSDK_EImageFormatGrey16:
-                bits_per_channel = 16;
-                break;
-            default:
-                assert(false);
+    unsigned Image::get_bits_per_channel(ImageHandle image) {
+        assert(image != nullptr);
+        auto p = get_numeric_parameter<int>(image, ParameterIdImageModeBits, 1);
+        if (p.error) {
+            // TODO handle error
         }
-        return bits_per_channel;
+        return to_unsigned(p.value.at(0));
     }
 
     std::vector<unsigned> Image::get_size(ImageHandle image) {
         assert(image != nullptr);
-        auto p = get_numeric_parameter<int>(image, ParameterIdImageProcessingOutputFormat, 2);
+        unsigned COUNT = 2;
+        auto p = get_numeric_parameter<int>(image, ParameterIdImageModeSize, COUNT);
         if (p.error) {
             // TODO handle error
         }
-        assert(p.value.size() == 2);
         return to_unsigned(p.value);
     }
 
+    double Image::get_pixel_size_um(ImageHandle image) {
+        assert(image != nullptr);
+        unsigned COUNT = 1;
+        auto p = get_numeric_parameter<double>(image, ParameterIdImageModePixelSizeMicroMeter, COUNT);
+        if (p.error) {
+            // TODO handle error
+        }
+        return p.value.at(0);
+    }
+
     // private static const members
-    const Image::NameMap Image::M_S_RGB_COMPONENT_NAMES{
+    const Image::NameMap Image::M_S_RGBA_COMPONENT_NAMES{
         {0, "red"},
         {1, "green"},
-        {2, "blue"}
+        {2, "blue"},
+        {3, "alpha"}
     };
     const Image::NameMap Image::M_S_GRAY_COMPONENT_NAMES{
         {0, "gray"}

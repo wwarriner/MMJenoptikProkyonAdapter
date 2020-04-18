@@ -2,6 +2,9 @@
 
 #include "Image.h"
 #include "TestImage.h"
+#include "TestRegionOfInterest.h"
+#include "AcquisitionParameters.h"
+#include "RegionOfInterest.h"
 #include "Camera.h"
 
 #include "MMDevice/ModuleInterface.h"
@@ -12,6 +15,7 @@
 
 #include <cassert>
 #include <sstream>
+#include <memory>
 #include <algorithm> // debug
 
 // ModuleInterface.h
@@ -39,11 +43,11 @@ MODULE_API void DeleteDevice(MM::Device *pDevice) {
 
 namespace Prokyon {
     // DeviceBase
-
-    ProkyonCamera::ProkyonCamera() :
-        CCameraBase<ProkyonCamera>(),
+    ProkyonCamera::ProkyonCamera() : CCameraBase<ProkyonCamera>(),
         m_p_camera{std::make_unique<Camera>()},
-        m_p_image{std::make_unique<TestImage>()}
+        m_p_image{std::make_unique<TestImage>()},
+        m_p_acq_parameters{nullptr},
+        m_p_roi{nullptr}
     {
     }
 
@@ -126,6 +130,10 @@ namespace Prokyon {
         return m_p_image->get_bit_depth();
     }
 
+    double ProkyonCamera::GetPixelSizeUm() const {
+        return m_p_image->get_pixel_size_um();
+    }
+
     int ProkyonCamera::GetBinning() const {
         // TODO
         return 1;
@@ -147,56 +155,28 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) {
-        // TODO
+        assert(m_p_roi != nullptr);
+        m_p_roi->set({x, y, xSize, ySize});
         return DEVICE_OK;
     }
 
-    int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ysize) {
-        // TODO
+    int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ySize) {
+        assert(m_p_roi != nullptr);
+        auto roi = m_p_roi->get();
+        x = roi.at(X_ind);
+        y = roi.at(Y_ind);
+        xSize = roi.at(W_ind);
+        ySize = roi.at(H_ind);
         return DEVICE_OK;
     }
 
     int ProkyonCamera::ClearROI() {
-        // TODO
+        assert(m_p_roi != nullptr);
+        m_p_roi->clear();
         return DEVICE_OK;
-    }
-
-    bool ProkyonCamera::SupportsMultiROI() {
-        // TODO
-        return false;
-    }
-
-    bool ProkyonCamera::IsMultiROISet() {
-        // TODO
-        return false;
-    }
-
-    int ProkyonCamera::GetMultiROICount(unsigned &count) {
-        // TODO
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
-
-    int ProkyonCamera::SetMultiROI(const unsigned *xs, const unsigned *ys, const unsigned *widths, const unsigned *heights, unsigned numROIs) {
-        // TODO
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
-
-    int ProkyonCamera::GetMultiROI(unsigned *xs, unsigned *ys, unsigned *widths, unsigned *heights, unsigned *length) {
-        // TODO
-        return DEVICE_UNSUPPORTED_COMMAND;
     }
 
     int ProkyonCamera::StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow) {
-        // TODO
-        return DEVICE_OK;
-    }
-
-    int ProkyonCamera::StartSequenceAcquisition(double interval_ms) {
-        // TODO
-        return DEVICE_OK;
-    }
-
-    int ProkyonCamera::StopSequenceAcquisition() {
         // TODO
         return DEVICE_OK;
     }
@@ -416,4 +396,4 @@ namespace Prokyon {
         ss << parameter.name << " (" << parameter.id << "): " << out;
         LogMessage(ss.str(), true);
     }
-}
+} // namespace Prokyon
