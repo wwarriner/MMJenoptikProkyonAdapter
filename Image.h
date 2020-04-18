@@ -3,20 +3,14 @@
 #ifndef PROKYON_IMAGE_H_
 #define PROKYON_IMAGE_H_
 
+#include "CommonDef.h"
 #include "ImageInterface.h"
 
 #include <map>
 #include <string>
 #include <vector>
 
-enum DijSDK_EImageFormat : int;
-using DijSDK_Handle = void *;
-
 namespace Prokyon {
-    using CameraHandle = DijSDK_Handle;
-    using ImageHandle = DijSDK_Handle;
-    using ImageBuffer = unsigned char *;
-
     class Image : public ImageInterface {
     public:
         Image(CameraHandle camera_handle);

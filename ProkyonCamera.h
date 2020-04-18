@@ -6,16 +6,13 @@
 #include "MMDevice/DeviceBase.h"
 #include "MMDevice/DeviceThreads.h"
 
+#include "CommonDef.h"
 #include "ImageInterface.h"
 #include "Parameters.h"
 
 #include <array>
 #include <memory>
 #include <string>
-
-enum DijSDK_EParamId : int;
-using DijSDK_CameraKey = char[33];
-using DijSDK_Handle = void *;
 
 namespace Prokyon {
     using CameraHandle = DijSDK_Handle;
