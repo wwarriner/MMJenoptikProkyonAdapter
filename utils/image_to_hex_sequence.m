@@ -23,7 +23,6 @@ values = values + "," + newline;
 values = strjoin(values, "");
 values = strip(values, "right", newline);
 values = strip(values, "right", ",");
-out = "img_seq{" + values + "};";
+out = "{" + values + "};";
 
 end
-
