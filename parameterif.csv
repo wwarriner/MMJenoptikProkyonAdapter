@@ -16,7 +16,7 @@ ParameterIdImageCaptureTriggerOutputModeT1,0x20000004,ImageCapture,x,x,trigger o
 ParameterIdImageCaptureTriggerOutputModeT2,0x20000005,ImageCapture,x,x,"trigger output mode for finish image acq, start readout",,,,int,1,0,DijSDK_TriggerOutputModeLast,
 ParameterIdImageCaptureTriggerOutputModeT3,0x20000006,ImageCapture,x,x,trigger output mode for finish readout,,,,int,1,0,DijSDK_TriggerOutputModeLast,
 ParameterIdSensorSize,0x20000080,Sensor,x,,sensor size,,,,int,2,1,int max,
-ParameterIdSensorSize,0x20000081,Sensor,x,,sensor color channels,,,,int,1,1,4,
+ParameterIdSensorColorChannels,0x20000081,Sensor,x,,sensor color channels,,,,int,1,1,4,
 ParameterIdSensorRedOffset,0x20000082,Sensor,x,,"sensor bayer red offset, -1 no bayer, 0 UL, 1 UR, 2 LL, 3 LR",,,,int,1,-1,3,
 ParameterIdSensorPixelSizeUm,0x30000083,Sensor,x,,sensor pixel size um,,,,double,2,>0,inf,
 ParameterIdSensorFrequenciesMHz,0x20000085,Sensor,x,,sensor frequency mhz,,,,int,1,2,int max,
