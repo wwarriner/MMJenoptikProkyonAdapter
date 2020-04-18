@@ -2,6 +2,7 @@
 
 #include "Image.h"
 #include "TestImage.h"
+#include "Camera.h"
 
 #include "MMDevice/ModuleInterface.h"
 #include "MMDevice/MMDeviceConstants.h"
@@ -40,32 +41,40 @@ namespace Prokyon {
     // DeviceBase
 
     ProkyonCamera::ProkyonCamera() :
-        m_camera_handle{nullptr},
-        m_initialized{false},
+        CCameraBase<ProkyonCamera>(),
+        m_p_camera{std::make_unique<Camera>()},
         m_p_image{std::make_unique<TestImage>()}
     {
     }
 
     int ProkyonCamera::Initialize() {
-        int out = DEVICE_OK;
-        if (!m_initialized) {
-            out = create_handle();
-            if (out == DEVICE_OK) {
-                m_initialized = true;
-            }
+        auto success = m_p_camera->initialize(&M_S_KEY, M_S_CAMERA_NAME, M_S_CAMERA_DESCRIPTION);
+        if (!success) {
+            LogMessage(m_p_camera->get_error());
+            return DEVICE_ERR;
         }
-        return out;
+        else {
+            auto test_image = TestImage();
+            auto w = test_image.get_image_width();
+            auto h = test_image.get_image_height();
+            ROI roi{w - 1, h - 1, w, h};
+            m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
+            m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get(), m_p_roi.get());
+            return DEVICE_OK;
+        }
     }
 
     int ProkyonCamera::Shutdown() {
-        int out = DEVICE_OK;
-        if (m_initialized) {
-            out = destroy_handle();
-            if (out == DEVICE_OK) {
-                m_initialized = false;
-            }
+        auto success = m_p_camera->shutdown();
+        if (!success) {
+            LogMessage(m_p_camera->get_error());
+            return DEVICE_ERR;
         }
-        return out;
+        else {
+            m_p_roi.reset(nullptr);
+            m_p_acq_parameters.reset(nullptr);
+            return DEVICE_OK;
+        }
     }
 
     void ProkyonCamera::GetName(char *name) const {
@@ -73,67 +82,47 @@ namespace Prokyon {
     }
 
     // CameraBase
-
     int ProkyonCamera::SnapImage() {
-        LogMessage("snap");
-        if (valid()) {
-            // HACK TEST IMAGE FOR NOW
-            m_p_image = std::make_unique<TestImage>();
-            //auto result = DijSDK_StartAcquisition(cam());
-            // TODO handle error
-            //m_p_image = std::make_unique<Image>(cam());
-        }
-        else {
-            m_p_image = std::make_unique<TestImage>();
-        }
+        // TODO
         return DEVICE_OK;
     }
 
     const unsigned char *ProkyonCamera::GetImageBuffer() {
-        LogMessage("get buffer");
         return m_p_image->get_image_buffer();
     }
 
     unsigned ProkyonCamera::GetNumberOfComponents() const {
-        LogMessage("get component count");
         return m_p_image->get_number_of_components();
     }
 
     int ProkyonCamera::GetComponentName(unsigned component, char *name) {
-        LogMessage("get component name");
         if (component > GetNumberOfComponents()) {
             return DEVICE_NONEXISTENT_CHANNEL;
         }
         else {
             auto out = m_p_image->get_component_name(component);
-            LogMessage(out.c_str());
             CDeviceUtils::CopyLimitedString(name, out.c_str());
             return DEVICE_OK;
         }
     }
 
     long ProkyonCamera::GetImageBufferSize() const {
-        LogMessage("get size");
         return GetImageWidth() * GetImageHeight() * GetImageBytesPerPixel();
     }
 
     unsigned ProkyonCamera::GetImageWidth() const {
-        LogMessage("get width");
         return m_p_image->get_image_height();
     }
 
     unsigned ProkyonCamera::GetImageHeight() const {
-        LogMessage("get height");
         return m_p_image->get_image_width();
     }
 
     unsigned ProkyonCamera::GetImageBytesPerPixel() const {
-        LogMessage("get bpp");
         return m_p_image->get_image_bytes_per_pixel();
     }
 
     unsigned ProkyonCamera::GetBitDepth() const {
-        LogMessage("get bits");
         return m_p_image->get_bit_depth();
     }
 
@@ -276,7 +265,7 @@ namespace Prokyon {
         auto result = DijSDK_GetVersion(version, length);
 
         std::stringstream ss;
-        ss << M_S_CAMERA_DESCRIPTION.c_str() << std::endl;
+        ss << M_S_CAMERA_DESCRIPTION << std::endl;
         if (IS_OK(result)) {
             ss << " " << version;
         }
@@ -284,107 +273,8 @@ namespace Prokyon {
     }
 
     // private
-
-    int ProkyonCamera::create_handle() {
-        // Initialize SDK
-        auto result = DijSDK_Init(&M_S_KEY, 1);
-        if (!IS_OK(result)) {
-            std::stringstream ss;
-            ss << "Error initializing " << M_S_CAMERA_NAME << std::endl;
-            log_error(__func__, __LINE__, ss.str());
-            return DEVICE_ERR;
-        }
-
-        // Get camera GUID
-        // Only 1 camera supported at this time
-        constexpr unsigned int EXPECTED_CAMERA_COUNT = 1;
-        DijSDK_CamGuid cam_guid[EXPECTED_CAMERA_COUNT];
-        unsigned int camera_count = EXPECTED_CAMERA_COUNT;
-        // Always returns some guid for each camera requested.
-        // Null camera appears to be "SynthCam::SynthCam::00000000"
-        result = DijSDK_FindCameras(cam_guid, &camera_count);
-        if (!IS_OK(result)) {
-            std::stringstream ss;
-            ss << "Unable to create handle to camera." << std::endl;
-            log_error(__func__, __LINE__, ss.str());
-            return DEVICE_ERR;
-        }
-
-        // Open first camera
-        result = DijSDK_OpenCamera(cam_guid[0], &m_camera_handle);
-        if (!IS_OK(result)) {
-            std::stringstream ss;
-            ss << "Camera not valid." << std::endl;
-            log_error(__func__, __LINE__, ss.str());
-            return DEVICE_ERR;
-        }
-
-        assert(IS_OK(result));
-        assert(m_camera_handle != nullptr);
-        return DEVICE_OK;
-    }
-
-    int ProkyonCamera::destroy_handle() {
-        if (!valid()) {
-            std::stringstream ss;
-            ss << "Tried to destroy invalid handle to " << M_S_CAMERA_NAME << std::endl;
-            log_error(__func__, __LINE__, ss.str());
-            return DEVICE_ERR;
-        }
-
-        // TODO check all image buffers are freed
-        auto result = DijSDK_CloseCamera(cam());
-        if (!IS_OK(result)) {
-            std::stringstream ss;
-            ss << "Failed to close camera " << M_S_CAMERA_NAME << std::endl;
-            log_error(__func__, __LINE__, ss.str());
-            return DEVICE_ERR;
-        }
-
-        result = DijSDK_Exit();
-        if (!IS_OK(result)) {
-            std::stringstream ss;
-            ss << "Error shutting down DijSDK for " << M_S_CAMERA_NAME << std::endl;
-            log_error(__func__, __LINE__, ss.str());
-            return DEVICE_ERR;
-        }
-
-        m_camera_handle = nullptr;
-        return DEVICE_OK;
-    }
-
-    bool ProkyonCamera::valid() const {
-        return cam() != nullptr;
-    }
-
-    const DijSDK_Handle ProkyonCamera::cam() const {
-        assert(m_camera_handle != nullptr);
-        return m_camera_handle;
-    }
-
-    DijSDK_Handle ProkyonCamera::cam() {
-        assert(m_camera_handle != nullptr);
-        return m_camera_handle;
-    }
-
-    ImageInterface *const ProkyonCamera::img() const {
-        assert(m_p_image != nullptr);
-        return m_p_image.get();
-    }
-
-    ImageInterface *ProkyonCamera::img() {
-        assert(m_p_image != nullptr);
-        return m_p_image.get();
-    }
-
     int ProkyonCamera::log_error(const char *func, const int line, const std::string &message) const {
-        std::stringstream ss;
-        ss << "Error in " << func << " at line " << line;
-        if (!message.empty()) {
-            ss << message;
-        }
-        ss << std::endl;
-        LogMessage(ss.str().c_str(), true);
+        LogMessage(format_error(func, line, message), true);
         return DEVICE_ERR;
     }
 
@@ -518,8 +408,8 @@ namespace Prokyon {
 
     void ProkyonCamera::LogProperty(const SDKParameter parameter) const {
         error_t out = -1024;
-        if (valid()) {
-            out = DijSDK_HasParameter(m_camera_handle, parameter.id);
+        if (m_p_camera != nullptr) {
+            out = DijSDK_HasParameter(m_p_camera.get(), parameter.id);
         }
 
         std::stringstream ss;

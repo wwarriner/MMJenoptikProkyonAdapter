@@ -15,10 +15,14 @@
 #include <string>
 
 namespace Prokyon {
-    using CameraHandle = DijSDK_Handle;
-    using ImageBuf = ImageInterface *;
+    class Camera;
+    class ImageInterface;
+    class RegionOfInterest;
+    class AcquisitionParameters;
 
     class ProkyonCamera : public CCameraBase<ProkyonCamera> {
+        using Camera = ::Prokyon::Camera;
+
     public:
         ProkyonCamera();
         //~ProkyonCamera();
@@ -76,18 +80,9 @@ namespace Prokyon {
         static const char *get_description(); // done
 
     private:
-        int create_handle();
-        int destroy_handle();
-        bool valid() const;
-        const CameraHandle cam() const;
-        CameraHandle cam();
-        ImageInterface *const img() const;
-        ImageInterface *img();
-
         int log_error(const char *func, const int line, const std::string &message = "") const;
 
-        CameraHandle m_camera_handle;
-        bool m_initialized;
+        std::unique_ptr<Camera> m_p_camera;
         std::unique_ptr<ImageInterface> m_p_image;
 
         static const DijSDK_CameraKey M_S_KEY;
