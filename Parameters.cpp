@@ -6,11 +6,16 @@
 #include <algorithm>
 
 namespace Prokyon {
-    StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, const unsigned int length) {
+    StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, unsigned int length) {
         std::vector<char> value;
         value.reserve(length);
         auto result = DijSDK_GetStringParameter(handle, param_id, value.data(), length);
         return {std::string(value.cbegin(), value.cend()), result};
+    }
+
+    template<>
+    error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num, DijSDK_EParamQuery query) {
+        return DijSDK_GetIntParameter(handle, paramId, pValue, num, query);
     }
 
     template<>
@@ -19,8 +24,13 @@ namespace Prokyon {
     }
 
     template<>
-    error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num, DijSDK_EParamQuery query) {
-        return DijSDK_GetIntParameter(handle, paramId, pValue, num, query);
+    error_t set_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num) {
+        return DijSDK_SetIntParameterArray(handle, paramId, pValue, num);
+    }
+
+    template<>
+    error_t set_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, double *pValue, unsigned int num) {
+        return DijSDK_SetDoubleParameterArray(handle, paramId, pValue, num);
     }
 
     typename std::make_unsigned<int>::type to_unsigned(const int signed_value) {
