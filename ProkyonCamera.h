@@ -27,10 +27,13 @@ namespace Prokyon {
         //~ProkyonCamera();
 
         // device
-        int Initialize();               // done
         int Initialize(); // done
         int Shutdown(); // done
         void GetName(char *name) const; // done
+
+        //debug
+        int GetProperty(const char *name, char *value) const;
+        int SetProperty(const char *name, const char *value);
 
         // camera
         int SnapImage();
@@ -59,21 +62,21 @@ namespace Prokyon {
         //int GetMultiROICount(unsigned &count); // DEFINED IN DeviceBase.h, not supported by default
         //int SetMultiROI(const unsigned *xs, const unsigned *ys, const unsigned *widths, const unsigned *heights, unsigned numROIs); // DEFINED IN DeviceBase.h, not supported by default
         //int GetMultiROI(unsigned *xs, unsigned *ys, unsigned *widths, unsigned *heights, unsigned *length); // DEFINED IN DeviceBase.h, not supported by default
-        int StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow);
+        //int StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow);
         //int StartSequenceAcquisition(double interval_ms); // DEFINED IN DeviceBase.h
         //int StopSequenceAcquisition(); // DEFINED IN DeviceBase.h
-        int PrepareSequenceAcqusition();
-        bool IsCapturing();
+        //int PrepareSequenceAcqusition();
+        //bool IsCapturing();
         // void GetTags(char *serializedMetadata); // DEFINED IN DeviceBase.h
         // void AddTag(const char *key, const char *deviceLabel, const char *value); // DEFINED IN DeviceBase.h
         // void RemoveTag(const char *key); // DEFINED IN DeviceBase.h
         int IsExposureSequenceable(bool &isSequenceable) const;
-        int GetExposureSequenceMaxLength(long &nrEvents) const;
-        int StartExposureSequence();
-        int StopExposureSequence();
-        int ClearExposureSequence();
-        int AddToExposureSequence(double exposureTime_ms);
-        int SendExposureSequence() const;
+        //int GetExposureSequenceMaxLength(long &nrEvents) const;
+        //int StartExposureSequence();
+        //int StopExposureSequence();
+        //int ClearExposureSequence();
+        //int AddToExposureSequence(double exposureTime_ms);
+        //int SendExposureSequence() const;
 
     public:
         static const char *get_name(); // done
@@ -86,6 +89,7 @@ namespace Prokyon {
         std::unique_ptr<ImageInterface> m_p_image;
         std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
         std::unique_ptr<RegionOfInterest> m_p_roi;
+        int m_bin_size_px;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;

@@ -3,6 +3,7 @@
 #include "Image.h"
 #include "TestImage.h"
 #include "TestRegionOfInterest.h"
+#include "TestAcquisitionParameters.h"
 #include "AcquisitionParameters.h"
 #include "RegionOfInterest.h"
 #include "Camera.h"
@@ -45,36 +46,43 @@ namespace Prokyon {
     // DeviceBase
     ProkyonCamera::ProkyonCamera() : CCameraBase<ProkyonCamera>(),
         m_p_camera{std::make_unique<Camera>()},
-        m_p_image{std::make_unique<TestImage>()},
+        m_p_image{nullptr},
         m_p_acq_parameters{nullptr},
-        m_p_roi{nullptr}
+        m_p_roi{nullptr},
+        m_bin_size_px{1}
     {
     }
 
     int ProkyonCamera::Initialize() {
+        LogMessage("initializing");
         auto success = m_p_camera->initialize(&M_S_KEY, M_S_CAMERA_NAME, M_S_CAMERA_DESCRIPTION);
         if (!success) {
             LogMessage(m_p_camera->get_error());
             return DEVICE_ERR;
         }
         else {
-            auto test_image = TestImage();
-            auto w = test_image.get_image_width();
-            auto h = test_image.get_image_height();
+            LogMessage("creating test image");
+            m_p_image = std::make_unique<TestImage>();
+            auto w = m_p_image->get_image_width();
+            auto h = m_p_image->get_image_height();
             ROI roi{w - 1, h - 1, w, h};
+            LogMessage("creating test roi");
             m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
-            m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get(), m_p_roi.get());
+            LogMessage("creating test acquisition parameters");
+            m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
             return DEVICE_OK;
         }
     }
 
     int ProkyonCamera::Shutdown() {
+        LogMessage("shutting down");
         auto success = m_p_camera->shutdown();
         if (!success) {
             LogMessage(m_p_camera->get_error());
             return DEVICE_ERR;
         }
         else {
+            m_p_image.reset(nullptr);
             m_p_roi.reset(nullptr);
             m_p_acq_parameters.reset(nullptr);
             return DEVICE_OK;
@@ -85,23 +93,73 @@ namespace Prokyon {
         CDeviceUtils::CopyLimitedString(name, M_S_CAMERA_NAME.c_str());
     }
 
+    int ProkyonCamera::GetProperty(const char *name, char *value) const {
+        LogMessage("getting property");
+        std::string name_in{name};
+        auto ret = DEVICE_ERR;
+        // HACK!
+        if (name_in == "Binning") {
+            std::stringstream out;
+            out << GetBinning();
+            CDeviceUtils::CopyLimitedString(value, out.str().c_str());
+            ret = DEVICE_OK;
+        }
+        else {
+            ret = CCameraBase<ProkyonCamera>::GetProperty(name, value);
+        }
+        return ret;
+    }
+
+    int ProkyonCamera::SetProperty(const char *name, const char *value) {
+        LogMessage("setting property");
+        std::string name_in{name};
+        auto ret = DEVICE_ERR;
+        if (name_in == "Binning") {
+            int value_in = GetBinning();
+            try {
+                value_in = std::stoi(value);
+            }
+            catch (std::invalid_argument e) {
+                // noop
+            }
+            catch (std::out_of_range e) {
+                // noop
+            }
+            SetBinning(value_in);
+            ret = DEVICE_OK;
+        }
+        else {
+            ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
+        }
+        return ret;
+    }
+
     // CameraBase
     int ProkyonCamera::SnapImage() {
+        LogMessage("snapping image");
         // TODO
         return DEVICE_OK;
     }
 
     const unsigned char *ProkyonCamera::GetImageBuffer() {
+        LogMessage("getting image buffer");
+        assert(m_p_image != nullptr);
         return m_p_image->get_image_buffer();
     }
 
     unsigned ProkyonCamera::GetNumberOfComponents() const {
+        LogMessage("getting number of components");
+        assert(m_p_image != nullptr);
         return m_p_image->get_number_of_components();
     }
 
     int ProkyonCamera::GetComponentName(unsigned component, char *name) {
+        LogMessage("getting component name");
         if (component > GetNumberOfComponents()) {
             return DEVICE_NONEXISTENT_CHANNEL;
+        }
+        else if (m_p_image == nullptr) {
+            return DEVICE_ERR;
         }
         else {
             auto out = m_p_image->get_component_name(component);
@@ -111,85 +169,152 @@ namespace Prokyon {
     }
 
     long ProkyonCamera::GetImageBufferSize() const {
+        LogMessage("getting image buffer size");
         return GetImageWidth() * GetImageHeight() * GetImageBytesPerPixel();
     }
 
     unsigned ProkyonCamera::GetImageWidth() const {
-        return m_p_image->get_image_height();
+        LogMessage("getting image buffer width");
+        if (m_p_image == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_image_height();
+        }
     }
 
     unsigned ProkyonCamera::GetImageHeight() const {
-        return m_p_image->get_image_width();
+        LogMessage("getting image buffer height");
+        if (m_p_image == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_image_width();
+        }
     }
 
     unsigned ProkyonCamera::GetImageBytesPerPixel() const {
-        return m_p_image->get_image_bytes_per_pixel();
+        LogMessage("getting image bytes per pixel");
+        if (m_p_image == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_image_bytes_per_pixel();
+        }
     }
 
     unsigned ProkyonCamera::GetBitDepth() const {
-        return m_p_image->get_bit_depth();
+        LogMessage("getting bit depth");
+        if (m_p_image == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_bit_depth();
+        }
     }
 
     double ProkyonCamera::GetPixelSizeUm() const {
-        return m_p_image->get_pixel_size_um();
+        LogMessage("getting pixel size um");
+        if (m_p_image == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_pixel_size_um();
+        }
     }
 
     int ProkyonCamera::GetBinning() const {
-        // TODO
-        return 1;
+        LogMessage("getting binning");
+        if (m_p_acq_parameters == nullptr) {
+            return 1;
+        }
+        else {
+            return m_p_acq_parameters->get_binning();
+        }
     }
 
     int ProkyonCamera::SetBinning(int binSize) {
-        // TODO
-        return DEVICE_OK;
+        LogMessage("setting binning");
+        if (m_p_acq_parameters == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            m_p_acq_parameters->set_binning(binSize);
+            return DEVICE_OK;
+        }
     }
 
     void ProkyonCamera::SetExposure(double exp_ms) {
-        // TODO
-        // no-op
+        LogMessage("setting exposure");
+        if (m_p_acq_parameters == nullptr) {
+            // noop
+        }
+        else {
+            m_p_acq_parameters->set_exposure_ms(exp_ms);
+        }
     }
 
     double ProkyonCamera::GetExposure() const {
-        // TODO
-        return 0;
+        LogMessage("getting exposure");
+        if (m_p_acq_parameters == nullptr) {
+            return 0.0;
+        }
+        else {
+            return m_p_acq_parameters->get_exposure_ms();
+        }
     }
 
     int ProkyonCamera::SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) {
-        assert(m_p_roi != nullptr);
-        m_p_roi->set({x, y, xSize, ySize});
-        return DEVICE_OK;
+        LogMessage("setting roi");
+        if (m_p_roi == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            m_p_roi->set({x, y, xSize, ySize});
+            return DEVICE_OK;
+        }
     }
 
     int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ySize) {
-        assert(m_p_roi != nullptr);
-        auto roi = m_p_roi->get();
-        x = roi.at(X_ind);
-        y = roi.at(Y_ind);
-        xSize = roi.at(W_ind);
-        ySize = roi.at(H_ind);
-        return DEVICE_OK;
+        LogMessage("getting exposure");
+        if (m_p_roi == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            auto roi = m_p_roi->get();
+            x = roi.at(X_ind);
+            y = roi.at(Y_ind);
+            xSize = roi.at(W_ind);
+            ySize = roi.at(H_ind);
+            return DEVICE_OK;
+        }
     }
 
     int ProkyonCamera::ClearROI() {
-        assert(m_p_roi != nullptr);
-        m_p_roi->clear();
-        return DEVICE_OK;
+        LogMessage("clearing exposure");
+        if (m_p_roi == nullptr) {
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            m_p_roi->clear();
+            return DEVICE_OK;
+        }
     }
 
-    int ProkyonCamera::StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow) {
-        // TODO
-        return DEVICE_OK;
-    }
+    //int ProkyonCamera::StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow) {
+    //    // TODO
+    //    return DEVICE_OK;
+    //}
 
-    int ProkyonCamera::PrepareSequenceAcqusition() {
-        // TODO
-        return DEVICE_OK;
-    }
+    //int ProkyonCamera::PrepareSequenceAcqusition() {
+    //    // TODO
+    //    return DEVICE_OK;
+    //}
 
-    bool ProkyonCamera::IsCapturing() {
-        // TODO
-        return false;
-    }
+    //bool ProkyonCamera::IsCapturing() {
+    //    // TODO
+    //    return false;
+    //}
 
     int ProkyonCamera::IsExposureSequenceable(bool &isSequencable) const {
         // TODO what is this?
@@ -197,43 +322,43 @@ namespace Prokyon {
         return DEVICE_OK;
     }
 
-    int ProkyonCamera::GetExposureSequenceMaxLength(long &nrEvents) const {
-        // TODO what is this?
-        bool sequenceable = false;
-        IsExposureSequenceable(sequenceable);
-        if (!sequenceable) {
-            return DEVICE_UNSUPPORTED_COMMAND;
-        }
-        else {
-            nrEvents = 1l;
-            return DEVICE_OK;
-        }
-    }
+    //int ProkyonCamera::GetExposureSequenceMaxLength(long &nrEvents) const {
+    //    // TODO what is this?
+    //    bool sequenceable = false;
+    //    IsExposureSequenceable(sequenceable);
+    //    if (!sequenceable) {
+    //        return DEVICE_UNSUPPORTED_COMMAND;
+    //    }
+    //    else {
+    //        nrEvents = 1l;
+    //        return DEVICE_OK;
+    //    }
+    //}
 
-    int ProkyonCamera::StartExposureSequence() {
-        // TODO what is this?
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
+    //int ProkyonCamera::StartExposureSequence() {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-    int ProkyonCamera::StopExposureSequence() {
-        // TODO what is this?
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
+    //int ProkyonCamera::StopExposureSequence() {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-    int ProkyonCamera::ClearExposureSequence() {
-        // TODO what is this?
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
+    //int ProkyonCamera::ClearExposureSequence() {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-    int ProkyonCamera::AddToExposureSequence(double exposureTime_ms) {
-        // TODO what is this ?
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
+    //int ProkyonCamera::AddToExposureSequence(double exposureTime_ms) {
+    //    // TODO what is this ?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-    int ProkyonCamera::SendExposureSequence() const {
-        // TODO what is this?
-        return DEVICE_UNSUPPORTED_COMMAND;
-    }
+    //int ProkyonCamera::SendExposureSequence() const {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
     const char *ProkyonCamera::get_name() {
         return M_S_CAMERA_NAME.c_str();

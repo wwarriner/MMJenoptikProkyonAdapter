@@ -9,8 +9,9 @@
 
 namespace Prokyon {
     // public
-    RegionOfInterest::RegionOfInterest(Camera *p_camera) :
-        m_p_camera{p_camera} {}
+    RegionOfInterest::RegionOfInterest(Camera *p_camera) {
+        if (p_camera != nullptr) { clear(); }
+    }
 
     ROI RegionOfInterest::get() const {
         auto count = std::tuple_size<ROI>::value;

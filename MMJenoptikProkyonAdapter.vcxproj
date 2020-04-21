@@ -156,6 +156,7 @@
     <ClCompile Include="ProkyonCamera.cpp" />
     <ClCompile Include="RegionOfInterest.cpp" />
     <ClCompile Include="AcquisitionParameters.cpp" />
+    <ClCompile Include="TestAcquisitionParameters.cpp" />
     <ClCompile Include="TestImage.cpp" />
     <ClCompile Include="TestRegionOfInterest.cpp" />
   </ItemGroup>
@@ -174,6 +175,7 @@
     <ClInclude Include="Parameters.h" />
     <ClInclude Include="ProkyonCamera.h" />
     <ClInclude Include="RegionOfInterest.h" />
+    <ClInclude Include="TestAcquisitionParameters.h" />
     <ClInclude Include="TestImage.h" />
     <ClInclude Include="TestRegionOfInterest.h" />
   </ItemGroup>

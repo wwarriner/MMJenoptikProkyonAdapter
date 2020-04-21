@@ -7,25 +7,19 @@
 
 namespace Prokyon {
     class Camera;
-    class RegionOfInterest;
 
     class AcquisitionParameters {
     public:
-        AcquisitionParameters(Camera *p_camera, RegionOfInterest *p_roi);
+        AcquisitionParameters(Camera *p_camera);
 
-        int get_binning() const;
-        void set_binning(int bin_size);
+        virtual int get_binning() const;
+        virtual void set_binning(int bin_size);
 
-        double get_exposure() const;
-        void set_exposure(double exposure_ms);
-
-        ROI get_roi() const;
-        void set_roi(const ROI roi);
-        void clear_roi();
+        virtual double get_exposure_ms() const;
+        virtual void set_exposure_ms(double exposure_ms);
 
     private:
         Camera *m_p_camera;
-        RegionOfInterest *m_p_roi;
     };
 }
 
