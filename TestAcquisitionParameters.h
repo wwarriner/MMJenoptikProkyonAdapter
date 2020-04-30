@@ -13,11 +13,11 @@ namespace Prokyon {
     public:
         TestAcquisitionParameters();
 
-        int get_binning() const;
-        void set_binning(int bin_size);
+        virtual int get_binning() const;
+        virtual void set_binning(int bin_size);
 
-        double get_exposure_ms() const;
-        void set_exposure_ms(double exposure_ms);
+        virtual double get_exposure_ms() const;
+        virtual void set_exposure_ms(double exposure_ms);
 
     private:
         int m_bin_size;

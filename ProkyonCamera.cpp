@@ -61,15 +61,13 @@ namespace Prokyon {
             return DEVICE_ERR;
         }
         else {
-            LogMessage("creating test image");
-            m_p_image = std::make_unique<TestImage>();
-            auto w = m_p_image->get_image_width();
-            auto h = m_p_image->get_image_height();
-            ROI roi{w - 1, h - 1, w, h};
             LogMessage("creating test roi");
+            ROI roi{0, 0, TestImage::width(), TestImage::height()};
             m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
             LogMessage("creating test acquisition parameters");
             m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
+            LogMessage("creating test image");
+            m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
             return DEVICE_OK;
         }
     }
@@ -179,7 +177,7 @@ namespace Prokyon {
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            return m_p_image->get_image_height();
+            return m_p_image->get_image_width();
         }
     }
 
@@ -189,7 +187,7 @@ namespace Prokyon {
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            return m_p_image->get_image_width();
+            return m_p_image->get_image_height();
         }
     }
 
@@ -270,7 +268,12 @@ namespace Prokyon {
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            m_p_roi->set({x, y, xSize, ySize});
+            ROI roi;
+            roi.at(X_ind) = x;
+            roi.at(Y_ind) = y;
+            roi.at(W_ind) = xSize;
+            roi.at(H_ind) = ySize;
+            m_p_roi->set(roi);
             return DEVICE_OK;
         }
     }
@@ -281,11 +284,10 @@ namespace Prokyon {
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            auto roi = m_p_roi->get();
-            x = roi.at(X_ind);
-            y = roi.at(Y_ind);
-            xSize = roi.at(W_ind);
-            ySize = roi.at(H_ind);
+            x = m_p_roi->x();
+            y = m_p_roi->y();
+            xSize = m_p_roi->w();
+            ySize = m_p_roi->h();
             return DEVICE_OK;
         }
     }

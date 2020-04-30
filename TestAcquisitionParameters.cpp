@@ -33,12 +33,9 @@ namespace Prokyon {
 
     void TestAcquisitionParameters::set_exposure_ms(double exposure_ms) {
         // check machine limit and convert ms to us
-        constexpr auto max_int = (std::numeric_limits<int>::max)();
-        auto exposure_us_raw = exposure_ms * 1000.0;
-        if (max_int < exposure_us_raw) {
-            exposure_us_raw = max_int;
-        }
-        int exposure_us = std::round(exposure_us_raw);
+        double max_int = (std::numeric_limits<int>::max)();
+        auto exposure_us_raw = std::min(exposure_ms * 1000.0, max_int);
+        int exposure_us = static_cast<int>(std::round(exposure_us_raw));
 
         // check hardware limits
         int max = 120'000'000; // 120,000,000 us = 2 minutes

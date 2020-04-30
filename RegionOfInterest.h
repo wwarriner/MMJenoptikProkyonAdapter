@@ -14,6 +14,13 @@ namespace Prokyon {
     public:
         RegionOfInterest(Camera *p_camera);
 
+        virtual unsigned int x() const;
+        virtual unsigned int w() const;
+        virtual unsigned int x_end() const;
+        virtual unsigned int y() const;
+        virtual unsigned int h() const;
+        virtual unsigned int y_end() const;
+
         virtual ROI get() const;
         virtual void set(const ROI roi);
         virtual void clear(); // sets to max size

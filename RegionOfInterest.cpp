@@ -13,6 +13,30 @@ namespace Prokyon {
         if (p_camera != nullptr) { clear(); }
     }
 
+    unsigned int RegionOfInterest::x() const {
+        return get()[X_ind];
+    }
+
+    unsigned int RegionOfInterest::w() const {
+        return get()[W_ind];
+    }
+
+    unsigned int RegionOfInterest::x_end() const {
+        return x() + w();
+    }
+
+    unsigned int RegionOfInterest::y() const {
+        return get()[Y_ind];
+    }
+
+    unsigned int RegionOfInterest::h() const {
+        return get()[H_ind];
+    }
+
+    unsigned int RegionOfInterest::y_end() const {
+        return y() + h();
+    }
+
     ROI RegionOfInterest::get() const {
         auto count = std::tuple_size<ROI>::value;
         assert(count < (std::numeric_limits<unsigned int>::max)());
