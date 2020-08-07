@@ -48,8 +48,7 @@ namespace Prokyon {
         m_p_camera{std::make_unique<Camera>()},
         m_p_image{nullptr},
         m_p_acq_parameters{nullptr},
-        m_p_roi{nullptr},
-        m_bin_size_px{1}
+        m_p_roi{nullptr}
     {
     }
 
@@ -137,6 +136,7 @@ namespace Prokyon {
     }
 
     void ProkyonCamera::GetName(char *name) const {
+        LogMessage("getting name");
         CDeviceUtils::CopyLimitedString(name, M_S_CAMERA_NAME.c_str());
     }
 
@@ -145,14 +145,20 @@ namespace Prokyon {
         std::string name_in{name};
         auto ret = DEVICE_ERR;
         // HACK!
-        if (name_in == "Binning") {
-            std::stringstream out;
-            out << GetBinning();
-            CDeviceUtils::CopyLimitedString(value, out.str().c_str());
+        if (name_in == MM::g_Keyword_Binning) {
+            LogMessage("copying");
+            auto out = CDeviceUtils::ConvertToString(GetBinning());
+            CDeviceUtils::CopyLimitedString(value, out);
+            LogMessage("done!");
             ret = DEVICE_OK;
         }
         else {
             ret = CCameraBase<ProkyonCamera>::GetProperty(name, value);
+        }
+        if (ret == DEVICE_ERR) {
+            LogMessage("failed");
+            LogMessage(name);
+            LogMessage(value);
         }
         return ret;
     }
@@ -161,7 +167,7 @@ namespace Prokyon {
         LogMessage("setting property");
         std::string name_in{name};
         auto ret = DEVICE_ERR;
-        if (name_in == "Binning") {
+        if (name_in == MM::g_Keyword_Binning) {
             int value_in = GetBinning();
             try {
                 value_in = std::stoi(value);
@@ -178,13 +184,53 @@ namespace Prokyon {
         else {
             ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
         }
+        if (ret == DEVICE_ERR) {
+            LogMessage("failed");
+            LogMessage(name);
+            LogMessage(value);
+        }
         return ret;
     }
 
     // CameraBase
     int ProkyonCamera::SnapImage() {
         LogMessage("snapping image");
-        // TODO
+        auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{DijSDK_EImageFormatGrey8});
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
+        result = DijSDK_StartAcquisition(*(m_p_camera.get())); // TODO this pair in camera
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
+        m_p_image = std::make_unique<Image>(m_p_camera.get());
+        result = DijSDK_AbortAcquisition(*(m_p_camera.get()));
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
+
+        std::stringstream ss;
+        ss << "image handle: " << m_p_image << "\n";
+        LogMessage(ss.str()); ss.str("");
+        ss << "component_count: " << m_p_image->get_number_of_components() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "bits_per_channel: " << m_p_image->get_bit_depth() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "bytes_per_pixel: " << m_p_image->get_image_bytes_per_pixel() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "size: " << m_p_image->get_image_width() << ", " << m_p_image->get_image_height() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "bytes: " << m_p_image->get_image_buffer_size() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "binning: " << GetBinning() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "exposure_ms: " << GetExposure() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        LogMessage("done");
+
         return DEVICE_OK;
     }
 
@@ -203,9 +249,11 @@ namespace Prokyon {
     int ProkyonCamera::GetComponentName(unsigned component, char *name) {
         LogMessage("getting component name");
         if (component > GetNumberOfComponents()) {
+            LogMessage("failed");
             return DEVICE_NONEXISTENT_CHANNEL;
         }
         else if (m_p_image == nullptr) {
+            LogMessage("failed err");
             return DEVICE_ERR;
         }
         else {
@@ -217,12 +265,17 @@ namespace Prokyon {
 
     long ProkyonCamera::GetImageBufferSize() const {
         LogMessage("getting image buffer size");
-        return GetImageWidth() * GetImageHeight() * GetImageBytesPerPixel();
+        if (m_p_image == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        return m_p_image->get_image_buffer_size();
     }
 
     unsigned ProkyonCamera::GetImageWidth() const {
         LogMessage("getting image buffer width");
         if (m_p_image == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -233,6 +286,7 @@ namespace Prokyon {
     unsigned ProkyonCamera::GetImageHeight() const {
         LogMessage("getting image buffer height");
         if (m_p_image == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -243,6 +297,7 @@ namespace Prokyon {
     unsigned ProkyonCamera::GetImageBytesPerPixel() const {
         LogMessage("getting image bytes per pixel");
         if (m_p_image == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -253,6 +308,7 @@ namespace Prokyon {
     unsigned ProkyonCamera::GetBitDepth() const {
         LogMessage("getting bit depth");
         if (m_p_image == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -266,28 +322,18 @@ namespace Prokyon {
 
     int ProkyonCamera::GetBinning() const {
         LogMessage("getting binning");
-        if (m_p_acq_parameters == nullptr) {
-            return 1;
-        }
-        else {
-            return m_p_acq_parameters->get_binning();
-        }
+        return 1;
     }
 
-    int ProkyonCamera::SetBinning(int binSize) {
+    int ProkyonCamera::SetBinning(int) {
         LogMessage("setting binning");
-        if (m_p_acq_parameters == nullptr) {
-            return DEVICE_NOT_CONNECTED;
-        }
-        else {
-            m_p_acq_parameters->set_binning(binSize);
-            return DEVICE_OK;
-        }
+        return DEVICE_OK;
     }
 
     void ProkyonCamera::SetExposure(double exp_ms) {
         LogMessage("setting exposure");
         if (m_p_acq_parameters == nullptr) {
+            LogMessage("failed");
             // noop
         }
         else {
@@ -298,6 +344,7 @@ namespace Prokyon {
     double ProkyonCamera::GetExposure() const {
         LogMessage("getting exposure");
         if (m_p_acq_parameters == nullptr) {
+            LogMessage("failed");
             return 0.0;
         }
         else {
@@ -308,9 +355,13 @@ namespace Prokyon {
     int ProkyonCamera::SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) {
         LogMessage("setting roi");
         if (m_p_roi == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
+            std::stringstream ss;
+            ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
+            LogMessage(ss.str());
             ROI roi;
             roi.at(X_ind) = x;
             roi.at(Y_ind) = y;
@@ -322,8 +373,9 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ySize) {
-        LogMessage("getting exposure");
+        LogMessage("getting roi");
         if (m_p_roi == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -331,13 +383,17 @@ namespace Prokyon {
             y = m_p_roi->y();
             xSize = m_p_roi->w();
             ySize = m_p_roi->h();
+            std::stringstream ss;
+            ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
+            LogMessage(ss.str());
             return DEVICE_OK;
         }
     }
 
     int ProkyonCamera::ClearROI() {
-        LogMessage("clearing exposure");
+        LogMessage("clearing roi");
         if (m_p_roi == nullptr) {
+            LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -428,7 +484,7 @@ namespace Prokyon {
         return DEVICE_ERR;
     }
 
-    const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774Bf12B70452BF23"};
+    const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774BF12B70452BF23"};
     const std::string ProkyonCamera::M_S_CAMERA_NAME{"Prokyon"};
     const std::string ProkyonCamera::M_S_CAMERA_DESCRIPTION{"Jenoptik Prokyon"};
 

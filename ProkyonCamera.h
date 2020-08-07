@@ -89,7 +89,6 @@ namespace Prokyon {
         std::unique_ptr<ImageInterface> m_p_image;
         std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
         std::unique_ptr<RegionOfInterest> m_p_roi;
-        int m_bin_size_px;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;
