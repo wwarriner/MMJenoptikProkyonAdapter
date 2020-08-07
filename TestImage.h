@@ -3,6 +3,7 @@
 #ifndef PROKYON_TEST_IMAGE_H_
 #define PROKYON_TEST_IMAGE_H_
 
+#include "CommonDef.h"
 #include "ImageInterface.h"
 
 #include <array>
@@ -19,8 +20,8 @@ namespace Prokyon {
         TestImage(const AcquisitionParameters *p_ap, const RegionOfInterest *p_roi);
         virtual ~TestImage() = default;
 
-        virtual const unsigned char *get_image_buffer();
-        virtual const unsigned char *get_image_buffer() const;
+        virtual ImageBuffer get_image_buffer();
+        virtual ImageBuffer get_image_buffer() const;
         virtual unsigned get_number_of_components() const;
         virtual std::string get_component_name(unsigned component) const;
         virtual long get_image_buffer_size() const;

@@ -30,11 +30,11 @@ namespace Prokyon {
     }
 
     // public member functions
-    const unsigned char *TestImage::get_image_buffer() {
+    ImageBuffer TestImage::get_image_buffer() {
         return static_cast<const TestImage *>(this)->get_image_buffer();
     }
 
-    const unsigned char *TestImage::get_image_buffer() const {
+    ImageBuffer TestImage::get_image_buffer() const {
         update_image();
         return m_current_img.data();
     }
