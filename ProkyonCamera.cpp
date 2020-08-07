@@ -55,36 +55,85 @@ namespace Prokyon {
 
     int ProkyonCamera::Initialize() {
         LogMessage("initializing");
-        auto success = m_p_camera->initialize(&M_S_KEY, M_S_CAMERA_NAME, M_S_CAMERA_DESCRIPTION);
-        if (!success) {
-            LogMessage(m_p_camera->get_error());
-            return DEVICE_ERR;
+        auto status = m_p_camera->initialize(&M_S_KEY, M_S_CAMERA_NAME, M_S_CAMERA_DESCRIPTION, 0);
+        int out = DEVICE_ERR;
+        switch (status) {
+            case Camera::Status::state_changed:
+            {
+                //LogMessage("creating test roi");
+                //ROI roi{0, 0, TestImage::width(), TestImage::height()};
+                //m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
+                //LogMessage("creating test acquisition parameters");
+                //m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
+                //LogMessage("creating test image");
+                //m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
+                //return DEVICE_OK;
+
+                std::stringstream ss;
+                ss << "using camera:\n";
+                ss << "  " << m_p_camera.get() << "\n";
+                ss << "  " << m_p_camera->get_error() << "\n";
+                ss << "  " << m_p_camera->get_guid() << "\n";
+                LogMessage(ss.str());
+
+                LogMessage("creating roi");
+                m_p_roi = std::make_unique<RegionOfInterest>(m_p_camera.get());
+                ss.str("");
+                ss << "x: (" << m_p_roi->x() << ", " << m_p_roi->x_end() << ") w: " << m_p_roi->w() << std::endl;
+                ss << "y: (" << m_p_roi->y() << ", " << m_p_roi->y_end() << ") h: " << m_p_roi->h() << std::endl;
+                LogMessage(ss.str());
+
+                LogMessage("creating acquisition parameters");
+                m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get());
+                LogMessage("initialized!");
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::no_change_needed:
+            {
+                LogMessage("already initialized");
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::failure:
+            {
+                LogMessage(m_p_camera->get_error());
+                out = DEVICE_ERR;
+                break;
+            }
+            default:
+                assert(false);
         }
-        else {
-            LogMessage("creating test roi");
-            ROI roi{0, 0, TestImage::width(), TestImage::height()};
-            m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
-            LogMessage("creating test acquisition parameters");
-            m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
-            LogMessage("creating test image");
-            m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
-            return DEVICE_OK;
-        }
+        return out;
     }
 
     int ProkyonCamera::Shutdown() {
         LogMessage("shutting down");
-        auto success = m_p_camera->shutdown();
-        if (!success) {
-            LogMessage(m_p_camera->get_error());
-            return DEVICE_ERR;
+        auto status = m_p_camera->shutdown();
+        int out = DEVICE_ERR;
+        switch (status) {
+            case Camera::Status::state_changed:
+            {
+                m_p_image.reset(nullptr);
+                m_p_roi.reset(nullptr);
+                m_p_acq_parameters.reset(nullptr);
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::no_change_needed:
+            {
+                LogMessage("already shutdown");
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::failure:
+            {
+                LogMessage(m_p_camera->get_error());
+                out = DEVICE_ERR;
+                break;
+            }
         }
-        else {
-            m_p_image.reset(nullptr);
-            m_p_roi.reset(nullptr);
-            m_p_acq_parameters.reset(nullptr);
-            return DEVICE_OK;
-        }
+        return out;
     }
 
     void ProkyonCamera::GetName(char *name) const {

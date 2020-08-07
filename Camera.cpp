@@ -13,9 +13,9 @@ namespace Prokyon {
         m_error{}{}
 
     // public
-    bool Camera::initialize(const DijSDK_CameraKey *key, std::string name, std::string description) {
+    Camera::Status Camera::initialize(const DijSDK_CameraKey *key, std::string name, std::string description, const int camera_index) {
         if (m_initialized) {
-            return true;
+            return Status::no_change_needed;
         }
 
         std::stringstream ss;
@@ -25,12 +25,12 @@ namespace Prokyon {
         if (!IS_OK(result)) {
             ss << "Error initializing " << name << std::endl;
             m_error = ss.str();
-            return false;
+            return Status::failure;
         }
 
         // Get camera GUID
         // Only 1 camera supported at this time
-        constexpr unsigned int EXPECTED_CAMERA_COUNT = 1;
+        constexpr unsigned int EXPECTED_CAMERA_COUNT = 2;
         DijSDK_CamGuid cam_guid[EXPECTED_CAMERA_COUNT];
         unsigned int camera_count = EXPECTED_CAMERA_COUNT;
         // Always returns some guid for each camera requested.
@@ -39,27 +39,29 @@ namespace Prokyon {
         if (!IS_OK(result)) {
             ss << "Unable to create handle to camera." << std::endl;
             m_error = ss.str();
-            return false;
+            return Status::failure;
         }
+        const auto selected_guid = cam_guid[camera_index];
 
         // Open first camera
-        result = DijSDK_OpenCamera(cam_guid[0], &m_camera);
+        result = DijSDK_OpenCamera(selected_guid, &m_camera);
         if (!IS_OK(result)) {
             ss << "Camera not valid." << std::endl;
             m_error = ss.str();
-            return false;
+            return Status::failure;
         }
 
         assert(IS_OK(result));
         assert(m_camera != nullptr);
         m_initialized = true;
         m_error = std::string{};
-        return true;
+        m_guid = std::string(selected_guid);
+        return Status::state_changed;
     }
 
-    bool Camera::shutdown() {
+    Camera::Status Camera::shutdown() {
         if (!m_initialized) {
-            return true;
+            return Status::no_change_needed;
         }
 
         std::stringstream ss;
@@ -78,12 +80,12 @@ namespace Prokyon {
         m_camera = nullptr;
         m_initialized = false;
         if (ss.str().empty()) {
-            return true;
+            return Status::state_changed;
         }
         else {
             ss << std::endl;
             m_error = ss.str();
-            return false;
+            return Status::failure;
         }
     }
 
@@ -109,5 +111,9 @@ namespace Prokyon {
 
     std::string Camera::get_error() const {
         return m_error;
+    }
+
+    std::string Camera::get_guid() const {
+        return m_guid;
     }
 }
