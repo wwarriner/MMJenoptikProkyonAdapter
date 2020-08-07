@@ -28,6 +28,7 @@ namespace Prokyon {
     private:
         virtual ROI get_max() const;
 
+        ROI m_roi;
         Camera *m_p_camera;
     };
 }

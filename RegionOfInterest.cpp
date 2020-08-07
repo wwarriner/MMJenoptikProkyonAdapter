@@ -9,8 +9,10 @@
 
 namespace Prokyon {
     // public
-    RegionOfInterest::RegionOfInterest(Camera *p_camera) {
-        if (p_camera != nullptr) { clear(); }
+    RegionOfInterest::RegionOfInterest(Camera *p_camera) :
+        m_p_camera{p_camera} {
+        assert(p_camera != nullptr);
+        clear();
     }
 
     unsigned int RegionOfInterest::x() const {
@@ -38,14 +40,7 @@ namespace Prokyon {
     }
 
     ROI RegionOfInterest::get() const {
-        auto count = std::tuple_size<ROI>::value;
-        assert(count < (std::numeric_limits<unsigned int>::max)());
-        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureRoi, static_cast<unsigned int>(count));
-        if (p.error) {
-            // TODO handle error
-        }
-        auto value = to_unsigned(p.value);
-        return {value.at(X_ind), value.at(Y_ind), value.at(W_ind), value.at(H_ind)};
+        return m_roi;
     }
 
     void RegionOfInterest::set(ROI roi) {
@@ -58,6 +53,7 @@ namespace Prokyon {
         if (result) {
             // TODO handle error
         }
+        m_roi = roi;
     }
 
     void RegionOfInterest::clear() {
