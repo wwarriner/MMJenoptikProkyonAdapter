@@ -89,10 +89,7 @@ namespace Prokyon {
         return m_bits_per_channel;
     }
 
-    double Image::get_pixel_size_um() const {
-        assert(0.0 < m_pixel_size_um);
-        return m_pixel_size_um;
-    }
+    // private
 
     unsigned Image::get_component_count(ImageHandle image) {
         assert(image != nullptr);

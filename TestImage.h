@@ -28,7 +28,6 @@ namespace Prokyon {
         virtual unsigned get_image_height() const;
         virtual unsigned get_image_bytes_per_pixel() const;
         virtual unsigned get_bit_depth() const;
-        virtual double get_pixel_size_um() const;
 
         static unsigned int width();
         static unsigned int height();

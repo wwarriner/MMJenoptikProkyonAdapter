@@ -212,13 +212,7 @@ namespace Prokyon {
     }
 
     double ProkyonCamera::GetPixelSizeUm() const {
-        LogMessage("getting pixel size um");
-        if (m_p_image == nullptr) {
-            return DEVICE_NOT_CONNECTED;
-        }
-        else {
-            return m_p_image->get_pixel_size_um();
-        }
+        return 1.0;
     }
 
     int ProkyonCamera::GetBinning() const {

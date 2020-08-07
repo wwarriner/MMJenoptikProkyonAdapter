@@ -82,10 +82,6 @@ namespace Prokyon {
         return M_S_BIT_DEPTH;
     }
 
-    double TestImage::get_pixel_size_um() const {
-        return 1.0;
-    }
-
     unsigned int TestImage::width() {
         return M_S_SIZE[0];
     }
