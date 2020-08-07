@@ -11,6 +11,7 @@ enum DijSDK_EParamId : int;
 using DijSDK_Handle = void *;
 using DijSDK_CameraKey = char[33];
 using DijSDK_Handle = void *;
+using DijSDK_CamGuid = char[128];
 
 namespace Prokyon {
     // typedefs
@@ -18,6 +19,7 @@ namespace Prokyon {
     using ImageHandle = DijSDK_Handle;
     using ImageBuffer = const unsigned char *;
     using ROI = std::array<unsigned int, 4>;
+    using CameraID = DijSDK_CamGuid;
 
     // constants
     static const unsigned int X_ind = 0;
