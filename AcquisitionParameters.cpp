@@ -13,11 +13,13 @@ namespace Prokyon {
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, 1);
         if (p.error) {
             // TODO handle error
+            assert(false);
         }
         return p.value.at(0);
     }
 
     void AcquisitionParameters::set_binning(int bin_size) {
+        // TODO this property is read only
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, 1, DijSDK_EParamQueryMax);
         auto max = p.value.at(0);
         if (bin_size < 1) {
@@ -26,9 +28,10 @@ namespace Prokyon {
         else if (max < bin_size) {
             bin_size = max;
         }
-        auto result = set_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, std::vector<int>{bin_size});
+        auto result = set_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, std::vector<int>{bin_size, bin_size});
         if (result) {
-            // TODO handle error
+            // TODO handle
+            assert(false);
         }
     }
 
@@ -36,6 +39,7 @@ namespace Prokyon {
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, 1);
         if (p.error) {
             // TODO handle error
+            assert(false);
         }
         auto exposure_us = p.value.at(0);
         return exposure_us / 1000.0;
@@ -52,6 +56,10 @@ namespace Prokyon {
 
         // check hardware limits
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, 1, DijSDK_EParamQueryMax);
+        if (p.error) {
+            // TODO handle error
+            assert(false);
+        }
         auto max = p.value.at(0);
         if (exposure_us < 1) {
             exposure_us = 1;
@@ -62,6 +70,7 @@ namespace Prokyon {
         auto result = set_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, std::vector<int>{exposure_us});
         if (result) {
             // TODO handle error
+            assert(false);
         }
     }
 }
