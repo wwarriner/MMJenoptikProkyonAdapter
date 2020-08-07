@@ -53,10 +53,9 @@ namespace Prokyon {
 namespace Prokyon {
     template<typename T>
     NumericParameter<T> get_numeric_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, unsigned int length, DijSDK_EParamQuery query) {
-        std::vector<T> value;
-        value.reserve(length);
+        std::vector<T> value(length);
         auto result = get_numeric_sdk_parameter<T>(handle, param_id, value.data(), length, query);
-        assert(value.size() == length);
+        //assert(value.size() == length);
         return {value, result};
     }
 
