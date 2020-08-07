@@ -11,13 +11,14 @@
 #include <vector>
 
 namespace Prokyon {
+    class Camera;
+
     class Image : public ImageInterface {
     public:
-        Image(CameraHandle camera_handle);
-        virtual ~Image();
+        Image(Camera *p_camera);
 
-        virtual const unsigned char *get_image_buffer();
-        virtual const unsigned char *get_image_buffer() const;
+        virtual ImageBuffer get_image_buffer();
+        virtual ImageBuffer get_image_buffer() const;
         virtual unsigned get_number_of_components() const;
         virtual std::string get_component_name(unsigned component) const;
         virtual long get_image_buffer_size() const;
@@ -28,22 +29,28 @@ namespace Prokyon {
 
     private:
         using NameMap = std::map<unsigned, std::string>;
+        using ImageData = std::vector<unsigned char>;
+        using Size = std::vector<unsigned>;
 
     private:
-        static unsigned get_component_count(ImageHandle image);
-        static NameMap get_component_name_map(unsigned count);
-        static unsigned get_bits_per_channel(ImageHandle image);
-        static std::vector<unsigned> get_size(ImageHandle image);
-        static double get_pixel_size_um(ImageHandle image);
+        static unsigned extract_component_count(ImageHandle image);
+        static NameMap build_component_name_map(unsigned component_count);
+        static unsigned extract_bits_per_channel(ImageHandle image);
+        static unsigned compute_bits_per_pixel(unsigned component_count, unsigned bits_per_channel);
+        static unsigned compute_bytes_per_pixel(unsigned bits_per_pixel);
+        static Size extract_size(ImageHandle image);
+        static long compute_image_bytes(std::vector<unsigned> size, unsigned bytes_per_pixel);
+        static ImageData copy_image_data(void *p_data, long bytes);
 
     private:
-        ImageHandle m_handle;
-        ImageBuffer m_p_data;
         unsigned m_component_count;
         NameMap m_component_names;
         unsigned m_bits_per_channel;
-        std::vector<unsigned> m_size;
-        double m_pixel_size_um;
+        unsigned m_bits_per_pixel;
+        unsigned m_bytes_per_pixel;
+        Size m_size;
+        long m_bytes;
+        ImageData m_data;
 
         static const NameMap M_S_RGBA_COMPONENT_NAMES;
         static const NameMap M_S_GRAY_COMPONENT_NAMES;
