@@ -35,7 +35,7 @@ namespace Prokyon {
         auto bits_per_pixel = compute_bits_per_pixel(component_count, bits_per_channel);
         auto bytes_per_pixel = compute_bytes_per_pixel(bits_per_pixel);
         auto size = extract_size(image_handle);
-        auto bytes = compute_image_bytes(size, bytes_per_pixel);
+        auto bytes = compute_image_bytes(size, component_count, bytes_per_pixel);
         auto data = copy_image_data(p_raw_data, bytes);
 
         result = DijSDK_ReleaseImage(image_handle);
@@ -212,12 +212,16 @@ namespace Prokyon {
         return to_unsigned(p.value);
     }
 
-    long Image::compute_image_bytes(std::vector<unsigned> size, unsigned bytes_per_pixel) {
+    long Image::compute_image_bytes(std::vector<unsigned> size, unsigned component_count, unsigned bytes_per_pixel) {
         assert(size.size() == 2);
         assert(0 < size[0]);
         assert(0 < size[1]);
+        assert(component_count == 1 || component_count == 4);
         assert(bytes_per_pixel == 1 || bytes_per_pixel == 2);
-        auto out = size[0] * size[1] * bytes_per_pixel;
+        auto out = static_cast<long>(size[0])
+            * static_cast<long>(size[1])
+            * static_cast<long>(component_count)
+            * static_cast<long>(bytes_per_pixel);
         assert(0 < out);
         return out;
     }

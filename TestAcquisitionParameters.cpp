@@ -9,8 +9,7 @@
 namespace Prokyon {
     TestAcquisitionParameters::TestAcquisitionParameters() :
         m_bin_size(1),
-        m_exposure_time_us(50'000),
-        AcquisitionParameters{nullptr} {}
+        m_exposure_time_us(50'000) {}
 
     int TestAcquisitionParameters::get_binning() const {
         return m_bin_size;
@@ -33,7 +32,7 @@ namespace Prokyon {
 
     void TestAcquisitionParameters::set_exposure_ms(double exposure_ms) {
         // check machine limit and convert ms to us
-        double max_int = (std::numeric_limits<int>::max)();
+        double max_int = static_cast<double>(std::numeric_limits<int>::max());
         auto exposure_us_raw = std::min(exposure_ms * 1000.0, max_int);
         int exposure_us = static_cast<int>(std::round(exposure_us_raw));
 

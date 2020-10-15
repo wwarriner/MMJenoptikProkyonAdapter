@@ -11,13 +11,12 @@
 #include <vector>
 
 namespace Prokyon {
-    class AcquisitionParameters;
-    class RegionOfInterest;
+    class AcquisitionParametersInterface;
+    class RegionOfInterestInterface;
 
     class TestImage : public ImageInterface {
     public:
-        TestImage();
-        TestImage(const AcquisitionParameters *p_ap, const RegionOfInterest *p_roi);
+        TestImage(const AcquisitionParametersInterface *p_ap, const RegionOfInterestInterface *p_roi);
         virtual ~TestImage() = default;
 
         virtual ImageBuffer get_image_buffer();
@@ -47,8 +46,8 @@ namespace Prokyon {
         static double compute_k(double H_deg, double n);
         static double compute_f(double L, double a, double k);
 
-        const AcquisitionParameters *m_p_acq_param;
-        const RegionOfInterest *m_p_roi;
+        const AcquisitionParametersInterface *m_p_acq_param;
+        const RegionOfInterestInterface *m_p_roi;
         const unsigned int m_img_count;
         mutable double m_angle_deg;
         mutable unsigned int m_img_index;

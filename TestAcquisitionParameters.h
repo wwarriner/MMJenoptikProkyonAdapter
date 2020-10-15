@@ -3,13 +3,13 @@
 #ifndef PROKYON_TEST_ACQUISITION_PARAMETERS_H
 #define PROKYON_TEST_ACQUISITION_PARAMETERS_H
 
-#include "AcquisitionParameters.h"
 #include "CommonDef.h"
+#include "AcquisitionParametersInterface.h"
 
 namespace Prokyon {
     class Camera;
 
-    class TestAcquisitionParameters : public AcquisitionParameters {
+    class TestAcquisitionParameters : public AcquisitionParametersInterface {
     public:
         TestAcquisitionParameters();
 

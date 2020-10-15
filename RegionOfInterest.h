@@ -4,13 +4,14 @@
 #define PROKYON_REGION_OF_INTEREST_H
 
 #include "CommonDef.h"
+#include "RegionOfInterestInterface.h"
 
 #include <vector>
 
 namespace Prokyon {
     class Camera;
 
-    class RegionOfInterest {
+    class RegionOfInterest : public RegionOfInterestInterface {
     public:
         RegionOfInterest(Camera *p_camera);
 

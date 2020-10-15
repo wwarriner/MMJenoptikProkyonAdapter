@@ -16,8 +16,8 @@
 namespace Prokyon {
     class Camera;
     class ImageInterface;
-    class RegionOfInterest;
-    class AcquisitionParameters;
+    class RegionOfInterestInterface;
+    class AcquisitionParametersInterface;
 
     class ProkyonCamera : public CCameraBase<ProkyonCamera> {
         using Camera = ::Prokyon::Camera;
@@ -87,8 +87,8 @@ namespace Prokyon {
 
         std::unique_ptr<Camera> m_p_camera;
         std::unique_ptr<ImageInterface> m_p_image;
-        std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
-        std::unique_ptr<RegionOfInterest> m_p_roi;
+        std::unique_ptr<AcquisitionParametersInterface> m_p_acq_parameters;
+        std::unique_ptr<RegionOfInterestInterface> m_p_roi;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;

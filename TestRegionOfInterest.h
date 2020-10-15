@@ -4,13 +4,19 @@
 #define PROKYON_TEST_REGION_OF_INTEREST_H
 
 #include "CommonDef.h"
-
-#include "RegionOfInterest.h"
+#include "RegionOfInterestInterface.h"
 
 namespace Prokyon {
-    class TestRegionOfInterest : public RegionOfInterest {
+    class TestRegionOfInterest : public RegionOfInterestInterface {
     public:
         TestRegionOfInterest(const ROI &max);
+
+        virtual unsigned int x() const;
+        virtual unsigned int w() const;
+        virtual unsigned int x_end() const;
+        virtual unsigned int y() const;
+        virtual unsigned int h() const;
+        virtual unsigned int y_end() const;
 
         virtual ROI get() const;
         virtual void set(const ROI roi);

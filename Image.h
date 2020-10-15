@@ -39,7 +39,7 @@ namespace Prokyon {
         static unsigned compute_bits_per_pixel(unsigned component_count, unsigned bits_per_channel);
         static unsigned compute_bytes_per_pixel(unsigned bits_per_pixel);
         static Size extract_size(ImageHandle image);
-        static long compute_image_bytes(std::vector<unsigned> size, unsigned bytes_per_pixel);
+        static long compute_image_bytes(std::vector<unsigned> size, unsigned component_count, unsigned bytes_per_pixel);
         static ImageData copy_image_data(void *p_data, long bytes);
 
     private:

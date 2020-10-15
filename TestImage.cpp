@@ -1,8 +1,8 @@
 #include "TestImage.h"
 
 #include "ImageInterface.h"
-#include "AcquisitionParameters.h"
-#include "RegionOfInterest.h"
+#include "AcquisitionParametersInterface.h"
+#include "RegionOfInterestInterface.h"
 #include "CommonDef.h"
 
 #include <cassert>
@@ -11,16 +11,7 @@
 #include <thread>
 
 namespace Prokyon {
-    TestImage::TestImage() :
-        m_p_acq_param(nullptr),
-        m_p_roi(nullptr),
-        m_img_count(static_cast<unsigned int>(M_S_TEST_IMAGES.size())),
-        m_angle_deg(0.0),
-        m_img_index(0) {
-        update_image();
-    }
-
-    TestImage::TestImage(const AcquisitionParameters *p_ap, const RegionOfInterest *p_roi) :
+    TestImage::TestImage(const AcquisitionParametersInterface *p_ap, const RegionOfInterestInterface *p_roi) :
         m_p_acq_param(p_ap),
         m_p_roi(p_roi),
         m_img_count(360),

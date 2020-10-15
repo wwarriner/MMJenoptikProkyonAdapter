@@ -1,5 +1,6 @@
 #include "ProkyonCamera.h"
 
+#include "NullImage.h"
 #include "Image.h"
 #include "TestImage.h"
 #include "TestRegionOfInterest.h"
@@ -46,7 +47,7 @@ namespace Prokyon {
     // DeviceBase
     ProkyonCamera::ProkyonCamera() : CCameraBase<ProkyonCamera>(),
         m_p_camera{std::make_unique<Camera>()},
-        m_p_image{nullptr},
+        m_p_image{std::make_unique<NullImage>()},
         m_p_acq_parameters{nullptr},
         m_p_roi{nullptr}
     {
@@ -59,15 +60,6 @@ namespace Prokyon {
         switch (status) {
             case Camera::Status::state_changed:
             {
-                //LogMessage("creating test roi");
-                //ROI roi{0, 0, TestImage::width(), TestImage::height()};
-                //m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
-                //LogMessage("creating test acquisition parameters");
-                //m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
-                //LogMessage("creating test image");
-                //m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
-                //return DEVICE_OK;
-
                 std::stringstream ss;
                 ss << "using camera:\n";
                 ss << "  " << m_p_camera.get() << "\n";
@@ -211,6 +203,14 @@ namespace Prokyon {
             assert(false);
             // todo
         }
+
+        //LogMessage("creating test roi");
+        //ROI roi{0, 0, TestImage::width(), TestImage::height()};
+        //m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
+        //LogMessage("creating test acquisition parameters");
+        //m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
+        //LogMessage("creating test image");
+        //m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
 
         std::stringstream ss;
         ss << "image handle: " << m_p_image << "\n";

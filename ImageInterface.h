@@ -5,8 +5,6 @@
 
 #include "CommonDef.h"
 
-#include <string>
-
 namespace Prokyon {
     class ImageInterface {
     public:
