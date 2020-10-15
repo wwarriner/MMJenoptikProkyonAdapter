@@ -1,6 +1,5 @@
-function out = convert_to_cpp_vector_literal(image_file)
+function [out, count] = convert_image_to_cpp_vector_literal(im)
 
-im = imread(image_file);
 im = flip(im, 3);
 sz = size(im);
 im = cat(3, im, zeros(sz(1:2)));
@@ -10,6 +9,7 @@ bin = string(bin);
 bin = reshape(bin, sz);
 bin = permute(bin, [3 2 1]);
 out = to_string(bin(:));
+count = numel(bin);
 
 end
 
@@ -17,6 +17,6 @@ end
 function s = to_string(bin)
 
 s = sprintf("0x%s,", bin);
-s = "{" + strip(s, "right", ",") + "};";
+s = "img{" + strip(s, "right", ",") + "};";
 
 end

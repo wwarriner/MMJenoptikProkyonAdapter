@@ -1,0 +1,115 @@
+name,val,group,cread,cwrite,cdesc,iread,iwrite,idesc,type,dim,min,max,special range
+ParameterIdImageCaptureExposureTimeUsec,0x20000000,ImageCapture,x,x,target exp time,x,,actual exp time,int,1,1,cam max,
+ParameterIdImageCaptureGain,0x30000001,ImageCapture,x,x,target gain,x,,actual gain,double,1,1,cam max,
+ParameterIdImageCaptureRoi,0x20000002,ImageCapture,,,"roi shape, [x,y,w,h]",x,,"roi shape, [x,y,w,h]",int,4,"[0,0,0,0]","[nc-1,nr-1,nc,nr]",
+ParameterIdImageCaptureFrameRate,0x30000007,ImageCapture,x,x,target fps,x,,actual fps,double,1,cam min,cam max,
+ParameterIdSensorNumberOfBits,0x20000084,Sensor,x,,sensor num bits,x,,num signif bits,int,1,2,int max,
+ParameterIdImageProcessingXyzWhite,0x3000020D,ImageProcessing,,,,x,,XYZ color space white point of color images,double,3,0,2^(bit depth),
+ParameterIdImageProcessingRawBlackOffset16,0x20000219,ImageProcessing,,,,x,,raw image black offset 16 bit,int,1,0,65535,
+ParameterIdImageProcessingHistogramRed,0x20000223,ImageProcessing,,,,x,,histogram red,int,256,0,255,
+ParameterIdImageProcessingHistogramGreen,0x20000224,ImageProcessing,,,,x,,histogram green (bayer green 1 RAW),int,256,0,255,
+ParameterIdImageProcessingHistogramGreen2,0x20000225,ImageProcessing,,,,x,,histogram bayer green 2 (RAW ONLY),int,256,0,255,
+ParameterIdImageProcessingHistogramBlue,0x20000226,ImageProcessing,,,,x,,histogram blue,int,256,0,255,
+ParameterIdImageProcessingHistogramGrey,0x20000227,ImageProcessing,,,,x,,histogram gray (rgb or gray),int,256,0,255,
+ParameterIdImageCaptureTriggerInputMode,0x20000003,ImageCapture,x,x,"trigger input mode for image acq, does nothing with DijSDK_TriggerInputModeDisable",,,,int,1,0,DijSDK_TriggerInputModeLast,
+ParameterIdImageCaptureTriggerOutputModeT1,0x20000004,ImageCapture,x,x,trigger output mode for start image acq,,,,int,1,0,DijSDK_TriggerOutputModeLast,
+ParameterIdImageCaptureTriggerOutputModeT2,0x20000005,ImageCapture,x,x,"trigger output mode for finish image acq, start readout",,,,int,1,0,DijSDK_TriggerOutputModeLast,
+ParameterIdImageCaptureTriggerOutputModeT3,0x20000006,ImageCapture,x,x,trigger output mode for finish readout,,,,int,1,0,DijSDK_TriggerOutputModeLast,
+ParameterIdSensorSize,0x20000080,Sensor,x,,sensor size,,,,int,2,1,int max,
+ParameterIdSensorColorChannels,0x20000081,Sensor,x,,sensor color channels,,,,int,1,1,4,
+ParameterIdSensorRedOffset,0x20000082,Sensor,x,,"sensor bayer red offset, -1 no bayer, 0 UL, 1 UR, 2 LL, 3 LR",,,,int,1,-1,3,
+ParameterIdSensorPixelSizeUm,0x30000083,Sensor,x,,sensor pixel size um,,,,double,2,>0,inf,
+ParameterIdSensorFrequenciesMHz,0x20000085,Sensor,x,,sensor frequency mhz,,,,int,1,2,int max,
+ParameterIdSensorImageCounter,0x20000087,Sensor,x,,sensor number of images,,,,int,1,0,cam max,
+ParameterIdImageModeIndex,0x20000100,ImageMode,x,x,image capture mode,,,,int,1,0,cam num modes - 1,
+ParameterIdImageModeVirtualIndex,0x20000101,ImageMode,x,x,used to get parameter info about modes without changing actual mode,,,,int,1,0,cam num modes - 1,
+ParameterIdImageModeShadingIndex,0x20000102,ImageMode,x,,used to calibrate shading,,,,int,1,0,max image mode index,
+ParameterIdImageModeSize,0x20000103,ImageMode,x,,width by height,,,,int,2,cam min,cam max,
+ParameterIdImageModeSubsampling,0x20000104,ImageMode,x,,"offset of next pixel relative to current, x by y",,,,int,2,1,int max,
+ParameterIdImageModeAveraging,0x20000105,ImageMode,x,,num sensor px averaged into 1 image px,,,,int,2,1,int max,
+ParameterIdImageModeSumming,0x20000106,ImageMode,x,,num sensor px summed into 1 image px,,,,int,2,1,int max,
+ParameterIdImageModeBits,0x20000107,ImageMode,x,,"num bits read from sensor, then num bits to host",,,,int,2,8,16,
+ParameterIdImageModePreferredAcqMode,0x20000108,ImageMode,x,,preferred acq mode for image mode,,,,int,1,,,DijSDK_EPreferredAcqMode
+ParameterIdImageModeScan,0x20000109,ImageMode,x,,num single images composing a result image,,,,int,1,,,"1, 4, 9, 16, 25, 36"
+ParameterIdImageModeName,0x4000010A,ImageMode,x,,name of image mode,,,,char,1,,,
+ParameterIdImageModePixelSizeMicroMeter,0x3000010B,ImageMode,x,,"size of image pixel on sensor, um",,,,double,2,>0,inf,
+ParameterIdImageProcessingOutputFormat,0x20000200,ImageProcessing,x,x,image format,x,,,int,1,,,DijSDK_EImageFormat
+ParameterIdImageProcessingWhiteBalance,0x30000201,ImageProcessing,x,x,"white balance, RGB",,,,double,3,0.01,15,
+ParameterIdImageProcessingWhiteBalanceMode,0x20000202,ImageProcessing,x,x,white balance mode,,,,int,1,,,DijSDK_EWhiteBalanceMode
+ParameterIdImageProcessingWhiteBalanceUpdateMode,0x20000203,ImageProcessing,x,x,white balance update mode,,,,int,1,,,DijSDK_EWhiteBalanceUpdateMode
+ParameterIdImageProcessingWhiteBalanceRoi,0x30000204,ImageProcessing,x,x,"white balance pipette roi shape, [x,y,w,h]",,,,double,4,0,1,
+ParameterIdImageProcessingGammaCorrection,0x30000205,ImageProcessing,x,x,gamma correction,,,,double,1,0.01,10,
+ParameterIdImageProcessingContrast,0x30000206,ImageProcessing,x,x,contrast intensity,,,,double,1,-1,1,
+ParameterIdImageProcessingSharpness,0x30000207,ImageProcessing,x,x,sharpness filter intensity,,,,double,1,0,1,
+ParameterIdImageProcessingHighDynamicRange,0x10000208,ImageProcessing,x,x,high-dynamic range,,,,bool,1,FALSE,TRUE,
+ParameterIdImageProcessingHdrWeight,0x30000209,ImageProcessing,x,x,"hdr weight, rec'd range 0.15 to 0.25",,,,double,1,0,2,
+ParameterIdImageProcessingHdrColorGamma,0x3000020A,ImageProcessing,x,x,"hdr color gamma, no effect on gray images",,,,double,1,0,2,
+ParameterIdImageProcessingHdrSmoothFieldSize,0x2000020B,ImageProcessing,x,x,"hdr smoothing field size, small global effect, large local effect",,,,int,0,10,,
+ParameterIdImageProcessingOrientation,0x2000020C,ImageProcessing,x,x,rotation and flipping,,,,int,1,,,DijSDK_EImageOrientation
+ParameterIdImageProcessingColorMatrixMode,0x2000020E,ImageProcessing,x,x,color matrix selection mode,,,,int,1,,,DijSDK_EColorMatrixMode
+ParameterIdImageProcessingColorMatrix,0x3000020F,ImageProcessing,x,x,user supplied color matrix values,,,,double,9,-4,4,
+ParameterIdImageProcessingIllumination,0x20000210,ImageProcessing,x,x,illumination mode,,,,int,,,,DijSDK_Eillumination AND those added by IOCTL
+ParameterIdImageProcessingColorBalance,0x30000211,ImageProcessing,x,x,color balance,,,,double,3,-1,1,
+ParameterIdImageProcessingColorBalKeepBrightness,0x10000212,ImageProcessing,x,x,color balance keep brightness,,,,bool,1,FALSE,TRUE,
+ParameterIdImageProcessingSaturation,0x30000213,ImageProcessing,x,x,saturation,,,,double,1,-1,1,
+ParameterIdImageProcessingBlackBalance,0x30000214,ImageProcessing,x,x,"black point, relative to intensity range of roi, 0 min, 1 max",,,,double,1,0,1,
+ParameterIdImageProcessingBlackBalanceRoi,0x30000215,ImageProcessing,x,x,black point roi,,,,double,4,0,1,
+ParameterIdImageProcessingContNoiseFilterLevel,0x20000216,ImageProcessing,x,x,continuous noise filter level,,,,int,,,,DijSDK_EContNoiseFilterLevel
+ParameterIdImageProcessingContNoiseFilterQuality,0x20000217,ImageProcessing,x,x,"continuous noise filter quality, num images to avg",,,,int,1,100,,
+ParameterIdImageProcessingContNoiseFilterCtrlMode,0x20000218,ImageProcessing,x,x,continuous noise filter control mode,,,,int,,,,DijSDK_EContNoiseFilterCtrlMode
+ParameterIdImageProcessingColorSpace,0x2000021A,ImageProcessing,x,x,rgb image color space,,,,int,,,,DijSDK_EColorSpace
+ParameterIdImageProcessingColorSkew,0x3000021B,ImageProcessing,x,x,"yellow shift <5000K, blue shift >5000K, 0 no change",,,,double,1,0,10,
+ParameterIdImageProcessingWhiteShadingAvailable,0x2000021E,ImageProcessing,x,,white shading available,,,,int,1,,,"DijSDK_EReferenceAvailable, only Non and White"
+ParameterIdImageProcessingBlackShadingAvailable,0x2000021F,ImageProcessing,x,,black shading available,,,,int,1,,,"DijSDK_EReferenceAvailable, only Non and Black*"
+ParameterIdImageProcessingWhiteShadingEnable,0x10000220,ImageProcessing,x,x,white shading enable,,,,bool,1,FALSE,TRUE,
+ParameterIdImageProcessingBlackShadingEnable,0x10000221,ImageProcessing,x,x,black shading enable,,,,bool,1,FALSE,TRUE,
+ParameterIdImageProcessingImageType,0x20000222,ImageProcessing,x,,image type,,,,int,1,,,DijSDK_EImageTypeId
+ParameterIdImageProcessingHistogramRoi,0x30000228,ImageProcessing,x,x,"histogram roi shape, relative [x,y,w,h]",,,,double,4,0,1,
+ParameterIdImageProcessingCutHistogramBorder,0x10000229,ImageProcessing,x,x,"first/last behavior, 0 calculated value, 1 set -1 both",,,,bool,1,FALSE,TRUE,
+ParameterIdImageProcessingSecondaryError,0x20000237,ImageProcessing,x,,read secondary error code,,,,int,1,,,error_t
+ParameterIdImageProcessingProcessorCores,0x20000238,ImageProcessing,x,,num cpu cores available,,,,int,1,min cpu,max cpu,
+ParameterIdImageProcessingAttachRawImages,0x10000267,ImageProcessing,x,x,"forces raw data available when different image format selected, retrievable via DijSDK_IoctlGetAttachedRawImage",,,,bool,1,FALSE,TRUE,
+ParameterIdImageProcessingOutputFifoSize,0x20000268,ImageProcessing,x,x,size of current image buffer queue,,,,int,1,1,FIFO MAX,
+ParameterIdCameraFeaturesCooling,0x20000280,CameraFeatures,x,x,"cooling intensity, 0 off, 1-10 in 10% increments",,,,int,1,0,10,
+ParameterIdCameraFeaturesVentilation,0x10000281,CameraFeatures,x,x,"ventilator state, false off, true on",,,,bool,1,FALSE,TRUE,
+ParameterIdCameraFeaturesTriggerOutputPin,0x10000282,CameraFeatures,x,x,"output trigger pin power level, false low, true high",,,,bool,1,FALSE,TRUE,
+ParameterIdCameraFeaturesTriggerInputPin,0x10000283,CameraFeatures,x,x,"input trigger pin power level, false low, true high",,,,bool,1,FALSE,TRUE,
+ParameterIdCameraFeaturesIlluminationIntensity,0x20000290,CameraFeatures,x,x,illumination intensity (typically %),,,,int,1,0,max illum,
+ParameterIdCameraFeaturesZPosition,0x200002A0,CameraFeatures,x,x,z drive control (focus),,,,int,1,min hardware,max hardware,"may be special value for ""find home"""
+ParameterIdExposureControlMode,0x20000300,CameraFeatures,x,x,auto exposure control mode,,,,int,1,,,DijSDK_EExposureControlMode
+ParameterIdExposureControlAlgorithm,0x20000302,CameraFeatures,x,,auto exposure control algorithm,,,,int,1,,,DijSDK_EExposureControlAlgorithm
+ParameterIdExposureControlRoi,0x30000303,CameraFeatures,x,x,"auto exposure control roi shape, relative [x,y,w,h]",,,,double,4,0,1,
+ParameterIdExposureControlBrightnessPercentage,0x20000304,CameraFeatures,x,x,auto exposure brightness %,,,,int,1,0,100,
+ParameterIdExposureControlExposureLimits,0x20000305,CameraFeatures,x,x,"limits of auto exposure time, max first, then min",,,,int,2,min cam,max cam,
+ParameterIdExposureControlMaxExposure,,,,,ALIAS FOR ParameterIdExposureControlExposureLimits,,,,,,,,
+ParameterIdExposureControlGainLimits,0x30000306,CameraFeatures,x,x,"limits of auto exposure gain, max first, then min",,,,int,2,min cam,max cam,
+ParameterIdExposureControlMaxGain,,,,,ALIAS FOR ParameterIdExposureControlExposureLimits,,,,,,,,
+ParameterIdExposureControlMaxOePercentage,0x2000030A,CameraFeatures,x,x,max over-exposure %,,,,int,2,0,100,
+ParameterIdExposureControlStatus,0x2000030F,CameraFeatures,x,,check status of auto exposure control,,,,int,1,,,DijSDK_EExposureControlStatus
+ParameterIdGlobalSettingsCameraName,0x40000380,GlobalSettings,x,,camera name,,,,char,1,,,
+ParameterIdGlobalSettingsCameraSerialNumber,0x40000381,GlobalSettings,x,,camera serial number,,,,char,1,,,
+ParameterIdGlobalSettingsOpenCameraWarning,0x20000382,GlobalSettings,x,,reason for warning from DijSDK_OpenCamera(),,,,int,1,,,DijSDK_EOpenCameraWarning
+ParameterIdGlobalSettingsCameraBoardNumber,0x40000386,GlobalSettings,x,,camera pcb tag,,,,char,1,,,
+ParameterIdGlobalSettingsApiLoggerFileName,0x4000038A,GlobalSettings,x,,"logs api calls to file while value is valid file name, set to NULL to stop logging",,,,char,1,,,valid filename
+ParameterIdGlobalSettingsErrorLoggerFileName,0x4000038B,GlobalSettings,x,,"logs errors to file while value is valid filename, set to NULL to stop logging",,,,char,1,,,valid filename
+ParameterIdFactorySettingsDefaultFirmwareUpdateFile,0x40000400,FactorySettingsDefault,x,,read name of extern firmware update file,,,,char,1,,,valid filename
+ParameterIdCustomerSettingsCustomerName,0x40000500,FactorySettingsDefault,x,x,name of customer of device,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue1,0x40000501,FactorySettingsDefault,x,x,user value 1,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue2,0x40000502,FactorySettingsDefault,x,x,user value 2,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue3,0x40000503,FactorySettingsDefault,x,x,user value 3,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue4,0x40000504,FactorySettingsDefault,x,x,user value 4,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue5,0x40000505,FactorySettingsDefault,x,x,user value 5,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue6,0x40000506,FactorySettingsDefault,x,x,user value 6,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue7,0x40000507,FactorySettingsDefault,x,x,user value 7,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue8,0x40000508,FactorySettingsDefault,x,x,user value 8,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue9,0x40000509,FactorySettingsDefault,x,x,user value 9,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue10,0x4000050A,FactorySettingsDefault,x,x,user value 10,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue11,0x4000050B,FactorySettingsDefault,x,x,user value 11,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue12,0x4000050C,FactorySettingsDefault,x,x,user value 12,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue13,0x4000050D,FactorySettingsDefault,x,x,user value 13,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue14,0x4000050E,FactorySettingsDefault,x,x,user value 14,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue15,0x4000050F,FactorySettingsDefault,x,x,user value 15,,,,char,1,,,
+ParameterIdCustomerSettingsUserValue16,0x40000510,FactorySettingsDefault,x,x,user value 16,,,,char,1,,,
+ParameterIdCustomerSettingsSdkEnabledFeatures,0x40000511,FactorySettingsDefault,x,,list of enabled SDK features,,,,char,1,,,
+ParameterIdCustomerSettingsAppEnabledFeatures,0x40000512,FactorySettingsDefault,x,,list of enabled APP features,,,,char,1,,,
+ParameterIdEndMarker,0x7FFFFFFF,FactorySettingsDefault,,  ,,,,,,,,,

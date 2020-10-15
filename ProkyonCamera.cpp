@@ -1,490 +1,625 @@
 #include "ProkyonCamera.h"
 
+#include "NullImage.h"
+#include "Image.h"
+#include "TestImage.h"
+#include "TestRegionOfInterest.h"
+#include "TestAcquisitionParameters.h"
+#include "AcquisitionParameters.h"
+#include "RegionOfInterest.h"
+#include "Camera.h"
+
 #include "MMDevice/ModuleInterface.h"
 #include "MMDevice/MMDeviceConstants.h"
-
 #include "dijsdk.h"
 #include "dijsdkerror.h"
 #include "parameterif.h"
 
 #include <cassert>
 #include <sstream>
+#include <memory>
 #include <algorithm> // debug
 
 // ModuleInterface.h
+// Required for initialization and DLL export
 
 MODULE_API void InitializeModuleData() {
-	RegisterDevice(ProkyonCamera::get_name(), MM::CameraDevice, ProkyonCamera::get_description());
+    RegisterDevice(Prokyon::ProkyonCamera::get_name(), MM::CameraDevice, Prokyon::ProkyonCamera::get_description());
 }
 
 MODULE_API MM::Device *CreateDevice(const char *name) {
-	if (name == nullptr) {
-		return nullptr;
-	}
-	else if (std::string{name} == ProkyonCamera::get_name()) {
-		return new ProkyonCamera{};
-	}
-	else {
-		return nullptr;
-	}
+    if (name == nullptr) {
+        return nullptr;
+    }
+    else if (std::string{name} == Prokyon::ProkyonCamera::get_name()) {
+        return new Prokyon::ProkyonCamera{};
+    }
+    else {
+        return nullptr;
+    }
 }
 
 MODULE_API void DeleteDevice(MM::Device *pDevice) {
-	delete pDevice;
+    delete pDevice;
 }
 
-// DeviceBase
+namespace Prokyon {
+    // DeviceBase
+    ProkyonCamera::ProkyonCamera() : CCameraBase<ProkyonCamera>(),
+        m_p_camera{std::make_unique<Camera>()},
+        m_p_image{std::make_unique<NullImage>()},
+        m_p_acq_parameters{nullptr},
+        m_p_roi{nullptr}
+    {
+    }
 
-ProkyonCamera::ProkyonCamera() : m_handle{nullptr},
-m_initialized{false}
-{
-}
+    int ProkyonCamera::Initialize() {
+        LogMessage("initializing");
+        auto status = m_p_camera->initialize(&M_S_KEY, M_S_CAMERA_NAME, M_S_CAMERA_DESCRIPTION, 0);
+        int out = DEVICE_ERR;
+        switch (status) {
+            case Camera::Status::state_changed:
+            {
+                std::stringstream ss;
+                ss << "using camera:\n";
+                ss << "  " << m_p_camera.get() << "\n";
+                ss << "  " << m_p_camera->get_error() << "\n";
+                ss << "  " << m_p_camera->get_guid() << "\n";
+                LogMessage(ss.str());
 
-int ProkyonCamera::Initialize() {
-	// TODO unspaghettify this
-	int out = DEVICE_OK;
-	if (!m_initialized) {
-		auto result = DijSDK_Init(&M_S_KEY, 1);
-		if (IS_OK(result)) {
-			m_handle = create_handle();
-			if (m_handle != nullptr) {
-				m_initialized = true;
-				out = DEVICE_OK;
-				LogProperties();
-			}
-			else {
-				std::stringstream ss;
-				ss << "Unable to create camera handle." << std::endl;
-				LogMessage(ss.str(), true);
-				out = DEVICE_ERR;
-			}
-		}
-		else {
-			std::stringstream ss;
-			ss << "Error initializing " << M_S_CAMERA_NAME << std::endl;
-			LogMessage(ss.str(), true);
-			out = DEVICE_ERR;
-		}
-	}
-	return out;
-}
+                LogMessage("creating roi");
+                m_p_roi = std::make_unique<RegionOfInterest>(m_p_camera.get());
+                ss.str("");
+                ss << "x: (" << m_p_roi->x() << ", " << m_p_roi->x_end() << ") w: " << m_p_roi->w() << std::endl;
+                ss << "y: (" << m_p_roi->y() << ", " << m_p_roi->y_end() << ") h: " << m_p_roi->h() << std::endl;
+                LogMessage(ss.str());
 
-int ProkyonCamera::Shutdown() {
-	int out = DEVICE_OK;
-	if (m_initialized) {
-		auto result = DijSDK_Exit();
-		if (IS_OK(result)) {
-			out = DEVICE_OK;
-			m_initialized = false;
-		}
-		else {
-			std::stringstream ss;
-			ss << "Error shutting down " << M_S_CAMERA_NAME << std::endl;
-			ss << "No guarantees of behavior beyond this point." << std::endl;
-			ss << "Recommend restarting MicroManager." << std::endl;
-			LogMessage(ss.str(), true);
-			out = DEVICE_ERR;
-		}
-	}
-	return out;
-}
+                LogMessage("creating acquisition parameters");
+                m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get());
+                LogMessage("initialized!");
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::no_change_needed:
+            {
+                LogMessage("already initialized");
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::failure:
+            {
+                LogMessage(m_p_camera->get_error());
+                out = DEVICE_ERR;
+                break;
+            }
+            default:
+                assert(false);
+        }
+        return out;
+    }
 
-void ProkyonCamera::GetName(char *name) const {
-	CDeviceUtils::CopyLimitedString(name, M_S_CAMERA_NAME.c_str());
-}
+    int ProkyonCamera::Shutdown() {
+        LogMessage("shutting down");
+        auto status = m_p_camera->shutdown();
+        int out = DEVICE_ERR;
+        switch (status) {
+            case Camera::Status::state_changed:
+            {
+                m_p_image.reset(nullptr);
+                m_p_roi.reset(nullptr);
+                m_p_acq_parameters.reset(nullptr);
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::no_change_needed:
+            {
+                LogMessage("already shutdown");
+                out = DEVICE_OK;
+                break;
+            }
+            case Camera::Status::failure:
+            {
+                LogMessage(m_p_camera->get_error());
+                out = DEVICE_ERR;
+                break;
+            }
+        }
+        return out;
+    }
 
-// CameraBase
+    void ProkyonCamera::GetName(char *name) const {
+        LogMessage("getting name");
+        CDeviceUtils::CopyLimitedString(name, M_S_CAMERA_NAME.c_str());
+    }
 
-int ProkyonCamera::SnapImage() {
-	std::stringstream ss;
-	ss << "Snap!" << std::endl;
-	LogMessage(ss.str(), true);
-	// set image mode DijSDK_SetIntParameter(..., ParameterIdImageModeIndex, ...);
-	// DijSDK_StartAcquisition();
-	// DijSDK_GetImage();
-	// copy image data to local image buffer
-	// DijSDK_ReleaseImage();
-	// DijSDK_AbortAcquisition() if required;
-	return DEVICE_OK;
-}
+    int ProkyonCamera::GetProperty(const char *name, char *value) const {
+        LogMessage("getting property");
+        std::string name_in{name};
+        auto ret = DEVICE_ERR;
+        // HACK!
+        if (name_in == MM::g_Keyword_Binning) {
+            LogMessage("copying");
+            auto out = CDeviceUtils::ConvertToString(GetBinning());
+            CDeviceUtils::CopyLimitedString(value, out);
+            LogMessage("done!");
+            ret = DEVICE_OK;
+        }
+        else {
+            ret = CCameraBase<ProkyonCamera>::GetProperty(name, value);
+        }
+        if (ret == DEVICE_ERR) {
+            LogMessage("failed");
+            LogMessage(name);
+            LogMessage(value);
+        }
+        return ret;
+    }
 
-const unsigned char *ProkyonCamera::GetImageBuffer() {
-	// TODO
-	return M_S_TEST_IMAGE.data();
-}
+    int ProkyonCamera::SetProperty(const char *name, const char *value) {
+        LogMessage("setting property");
+        std::string name_in{name};
+        auto ret = DEVICE_ERR;
+        if (name_in == MM::g_Keyword_Binning) {
+            int value_in = GetBinning();
+            try {
+                value_in = std::stoi(value);
+            }
+            catch (std::invalid_argument e) {
+                // noop
+            }
+            catch (std::out_of_range e) {
+                // noop
+            }
+            SetBinning(value_in);
+            ret = DEVICE_OK;
+        }
+        else {
+            ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
+        }
+        if (ret == DEVICE_ERR) {
+            LogMessage("failed");
+            LogMessage(name);
+            LogMessage(value);
+        }
+        return ret;
+    }
 
-unsigned ProkyonCamera::GetNumberOfComponents() const {
-	return 4;
-}
+    // CameraBase
+    int ProkyonCamera::SnapImage() {
+        LogMessage("snapping image");
+        auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{DijSDK_EImageFormatGrey8});
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
+        result = DijSDK_StartAcquisition(*(m_p_camera.get())); // TODO this pair in camera
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
+        m_p_image = std::make_unique<Image>(m_p_camera.get());
+        result = DijSDK_AbortAcquisition(*(m_p_camera.get()));
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
 
-int ProkyonCamera::GetComponentName(unsigned component, char *name) {
-	std::string out{""};
-	switch (component) {
-		case 0:
-			out = "Red";
-			break;
-		case 1:
-			out = "Green";
-			break;
-		case 2:
-			out = "Blue";
-			break;
-		case 3:
-			out = "Alpha";
-			break;
-		default:
-			return DEVICE_NONEXISTENT_CHANNEL;
-	}
-	CDeviceUtils::CopyLimitedString(name, out.c_str());
-	return DEVICE_OK;
-}
+        //LogMessage("creating test roi");
+        //ROI roi{0, 0, TestImage::width(), TestImage::height()};
+        //m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
+        //LogMessage("creating test acquisition parameters");
+        //m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
+        //LogMessage("creating test image");
+        //m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
 
-long ProkyonCamera::GetImageBufferSize() const {
-	// TODO
-	return 15 * 15;
-}
+        std::stringstream ss;
+        ss << "image handle: " << m_p_image << "\n";
+        LogMessage(ss.str()); ss.str("");
+        ss << "component_count: " << m_p_image->get_number_of_components() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "bits_per_channel: " << m_p_image->get_bit_depth() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "bytes_per_pixel: " << m_p_image->get_image_bytes_per_pixel() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "size: " << m_p_image->get_image_width() << ", " << m_p_image->get_image_height() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "bytes: " << m_p_image->get_image_buffer_size() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "binning: " << GetBinning() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        ss << "exposure_ms: " << GetExposure() << std::endl;
+        LogMessage(ss.str()); ss.str("");
+        LogMessage("done");
 
-unsigned ProkyonCamera::GetImageWidth() const {
-	// TODO
-	return 15;
-}
+        return DEVICE_OK;
+    }
 
-unsigned ProkyonCamera::GetImageHeight() const {
-	// TODO
-	return 15;
-}
+    const unsigned char *ProkyonCamera::GetImageBuffer() {
+        LogMessage("getting image buffer");
+        assert(m_p_image != nullptr);
+        return m_p_image->get_image_buffer();
+    }
 
-unsigned ProkyonCamera::GetImageBytesPerPixel() const {
-	// TODO
-	return 4;
-}
+    unsigned ProkyonCamera::GetNumberOfComponents() const {
+        LogMessage("getting number of components");
+        assert(m_p_image != nullptr);
+        return m_p_image->get_number_of_components();
+    }
 
-unsigned ProkyonCamera::GetBitDepth() const {
-	// TODO
-	return 8;
-}
+    int ProkyonCamera::GetComponentName(unsigned component, char *name) {
+        LogMessage("getting component name");
+        if (component > GetNumberOfComponents()) {
+            LogMessage("failed");
+            return DEVICE_NONEXISTENT_CHANNEL;
+        }
+        else if (m_p_image == nullptr) {
+            LogMessage("failed err");
+            return DEVICE_ERR;
+        }
+        else {
+            auto out = m_p_image->get_component_name(component);
+            CDeviceUtils::CopyLimitedString(name, out.c_str());
+            return DEVICE_OK;
+        }
+    }
 
-int ProkyonCamera::GetBinning() const {
-	// TODO
-	return 1;
-}
+    long ProkyonCamera::GetImageBufferSize() const {
+        LogMessage("getting image buffer size");
+        if (m_p_image == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        return m_p_image->get_image_buffer_size();
+    }
 
-int ProkyonCamera::SetBinning(int binSize) {
-	// TODO
-	return DEVICE_OK;
-}
+    unsigned ProkyonCamera::GetImageWidth() const {
+        LogMessage("getting image buffer width");
+        if (m_p_image == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_image_width();
+        }
+    }
 
-void ProkyonCamera::SetExposure(double exp_ms) {
-	// TODO
-	// no-op
-}
+    unsigned ProkyonCamera::GetImageHeight() const {
+        LogMessage("getting image buffer height");
+        if (m_p_image == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_image_height();
+        }
+    }
 
-double ProkyonCamera::GetExposure() const {
-	// TODO
-	return 0;
-}
+    unsigned ProkyonCamera::GetImageBytesPerPixel() const {
+        LogMessage("getting image bytes per pixel");
+        if (m_p_image == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_image_bytes_per_pixel();
+        }
+    }
 
-int ProkyonCamera::SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) {
-	// TODO
-	return DEVICE_OK;
-}
+    unsigned ProkyonCamera::GetBitDepth() const {
+        LogMessage("getting bit depth");
+        if (m_p_image == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            return m_p_image->get_bit_depth();
+        }
+    }
 
-int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ysize) {
-	// TODO
-	return DEVICE_OK;
-}
+    double ProkyonCamera::GetPixelSizeUm() const {
+        return 1.0;
+    }
 
-int ProkyonCamera::ClearROI() {
-	// TODO
-	return DEVICE_OK;
-}
+    int ProkyonCamera::GetBinning() const {
+        LogMessage("getting binning");
+        return 1;
+    }
 
-bool ProkyonCamera::SupportsMultiROI() {
-	// TODO
-	return false;
-}
+    int ProkyonCamera::SetBinning(int) {
+        LogMessage("setting binning");
+        return DEVICE_OK;
+    }
 
-bool ProkyonCamera::IsMultiROISet() {
-	// TODO
-	return false;
-}
+    void ProkyonCamera::SetExposure(double exp_ms) {
+        LogMessage("setting exposure");
+        if (m_p_acq_parameters == nullptr) {
+            LogMessage("failed");
+            // noop
+        }
+        else {
+            m_p_acq_parameters->set_exposure_ms(exp_ms);
+        }
+    }
 
-int ProkyonCamera::GetMultiROICount(unsigned &count) {
-	// TODO
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    double ProkyonCamera::GetExposure() const {
+        LogMessage("getting exposure");
+        if (m_p_acq_parameters == nullptr) {
+            LogMessage("failed");
+            return 0.0;
+        }
+        else {
+            return m_p_acq_parameters->get_exposure_ms();
+        }
+    }
 
-int ProkyonCamera::SetMultiROI(const unsigned *xs, const unsigned *ys, const unsigned *widths, const unsigned *heights, unsigned numROIs) {
-	// TODO
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    int ProkyonCamera::SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) {
+        LogMessage("setting roi");
+        if (m_p_roi == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            std::stringstream ss;
+            ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
+            LogMessage(ss.str());
+            ROI roi;
+            roi.at(X_ind) = x;
+            roi.at(Y_ind) = y;
+            roi.at(W_ind) = xSize;
+            roi.at(H_ind) = ySize;
+            m_p_roi->set(roi);
+            return DEVICE_OK;
+        }
+    }
 
-int ProkyonCamera::GetMultiROI(unsigned *xs, unsigned *ys, unsigned *widths, unsigned *heights, unsigned *length) {
-	// TODO
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ySize) {
+        LogMessage("getting roi");
+        if (m_p_roi == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            x = m_p_roi->x();
+            y = m_p_roi->y();
+            xSize = m_p_roi->w();
+            ySize = m_p_roi->h();
+            std::stringstream ss;
+            ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
+            LogMessage(ss.str());
+            return DEVICE_OK;
+        }
+    }
 
-int ProkyonCamera::StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow) {
-	// TODO
-	return DEVICE_OK;
-}
+    int ProkyonCamera::ClearROI() {
+        LogMessage("clearing roi");
+        if (m_p_roi == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            m_p_roi->clear();
+            return DEVICE_OK;
+        }
+    }
 
-int ProkyonCamera::StartSequenceAcquisition(double interval_ms) {
-	// TODO
-	return DEVICE_OK;
-}
+    //int ProkyonCamera::StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow) {
+    //    // TODO
+    //    return DEVICE_OK;
+    //}
 
-int ProkyonCamera::StopSequenceAcquisition() {
-	// TODO
-	return DEVICE_OK;
-}
+    //int ProkyonCamera::PrepareSequenceAcqusition() {
+    //    // TODO
+    //    return DEVICE_OK;
+    //}
 
-int ProkyonCamera::PrepareSequenceAcqusition() {
-	// TODO
-	return DEVICE_OK;
-}
+    //bool ProkyonCamera::IsCapturing() {
+    //    // TODO
+    //    return false;
+    //}
 
-bool ProkyonCamera::IsCapturing() {
-	// TODO
-	return false;
-}
+    int ProkyonCamera::IsExposureSequenceable(bool &isSequencable) const {
+        // TODO what is this?
+        isSequencable = false;
+        return DEVICE_OK;
+    }
 
-int ProkyonCamera::IsExposureSequenceable(bool &isSequencable) const {
-	// TODO what is this?
-	isSequencable = false;
-	return DEVICE_OK;
-}
+    //int ProkyonCamera::GetExposureSequenceMaxLength(long &nrEvents) const {
+    //    // TODO what is this?
+    //    bool sequenceable = false;
+    //    IsExposureSequenceable(sequenceable);
+    //    if (!sequenceable) {
+    //        return DEVICE_UNSUPPORTED_COMMAND;
+    //    }
+    //    else {
+    //        nrEvents = 1l;
+    //        return DEVICE_OK;
+    //    }
+    //}
 
-int ProkyonCamera::GetExposureSequenceMaxLength(long &nrEvents) const {
-	// TODO what is this?
-	bool sequenceable = false;
-	IsExposureSequenceable(sequenceable);
-	if (!sequenceable) {
-		return DEVICE_UNSUPPORTED_COMMAND;
-	}
-	else {
-		nrEvents = 1l;
-		return DEVICE_OK;
-	}
-}
+    //int ProkyonCamera::StartExposureSequence() {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-int ProkyonCamera::StartExposureSequence() {
-	// TODO what is this?
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    //int ProkyonCamera::StopExposureSequence() {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-int ProkyonCamera::StopExposureSequence() {
-	// TODO what is this?
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    //int ProkyonCamera::ClearExposureSequence() {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-int ProkyonCamera::ClearExposureSequence() {
-	// TODO what is this?
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    //int ProkyonCamera::AddToExposureSequence(double exposureTime_ms) {
+    //    // TODO what is this ?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-int ProkyonCamera::AddToExposureSequence(double exposureTime_ms) {
-	// TODO what is this ?
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    //int ProkyonCamera::SendExposureSequence() const {
+    //    // TODO what is this?
+    //    return DEVICE_UNSUPPORTED_COMMAND;
+    //}
 
-int ProkyonCamera::SendExposureSequence() const {
-	// TODO what is this?
-	return DEVICE_UNSUPPORTED_COMMAND;
-}
+    const char *ProkyonCamera::get_name() {
+        return M_S_CAMERA_NAME.c_str();
+    }
 
-const char *ProkyonCamera::get_name() {
-	return M_S_CAMERA_NAME.c_str();
-}
+    const char *ProkyonCamera::get_description() {
+        const unsigned int length = 128;
+        char version[length];
+        auto result = DijSDK_GetVersion(version, length);
 
-const char *ProkyonCamera::get_description() {
-	return M_S_CAMERA_DESCRIPTION.c_str();
-}
+        std::stringstream ss;
+        ss << M_S_CAMERA_DESCRIPTION << std::endl;
+        if (IS_OK(result)) {
+            ss << " " << version;
+        }
+        return ss.str().c_str();
+    }
 
-// private
+    // private
+    int ProkyonCamera::log_error(const char *func, const int line, const std::string &message) const {
+        LogMessage(format_error(func, line, message), true);
+        return DEVICE_ERR;
+    }
 
-DijSDK_Handle ProkyonCamera::create_handle() const {
-	DijSDK_Handle handle = nullptr;
-	DijSDK_CamGuid cam_guid;
-	unsigned int camera_count = 1;
-	auto result = DijSDK_FindCameras(&cam_guid, &camera_count);
-	if (IS_OK(result)) {
-		if (camera_count <= 0) {
-			std::stringstream ss;
-			ss << "No cameras found." << std::endl;
-			LogMessage(ss.str(), true);
-		}
-		if (camera_count < M_S_EXPECTED_CAMERA_COUNT) {
-			std::stringstream ss;
-			ss << "Could not find expected number of cameras" << std::endl;
-			LogMessage(ss.str(), true);
-		}
-		else if (M_S_EXPECTED_CAMERA_COUNT < camera_count) {
-			std::stringstream ss;
-			ss << "Found more than one camera, using only the first one found." << std::endl;
-			LogMessage(ss.str(), true);
-		}
-		else {
-			DijSDK_OpenCamera(cam_guid, &handle);
-		}
-	}
-	else {
-		std::stringstream ss;
-		ss << "Unable to create handle to camera." << std::endl;
-		LogMessage(ss.str(), true);
-	}
-	return handle;
-}
+    const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774BF12B70452BF23"};
+    const std::string ProkyonCamera::M_S_CAMERA_NAME{"Prokyon"};
+    const std::string ProkyonCamera::M_S_CAMERA_DESCRIPTION{"Jenoptik Prokyon"};
 
-bool ProkyonCamera::handle_valid() const {
-	return m_handle != nullptr;
-}
+    // debug
 
-const DijSDK_Handle ProkyonCamera::handle() const {
-	return m_handle;
-}
+    void ProkyonCamera::LogProperties() const {
+        std::vector<SDKParameter> parameters{
+            {"ParameterIdImageCaptureExposureTimeUsec", static_cast<DijSDK_EParamId>(0x20000000)},
+            {"ParameterIdImageCaptureGain", static_cast<DijSDK_EParamId>(0x30000001)},
+            {"ParameterIdImageCaptureRoi", static_cast<DijSDK_EParamId>(0x20000002)},
+            {"ParameterIdImageCaptureTriggerInputMode", static_cast<DijSDK_EParamId>(0x20000003)},
+            {"ParameterIdImageCaptureTriggerOutputModeT1", static_cast<DijSDK_EParamId>(0x20000004)},
+            {"ParameterIdImageCaptureTriggerOutputModeT2", static_cast<DijSDK_EParamId>(0x20000005)},
+            {"ParameterIdImageCaptureTriggerOutputModeT3", static_cast<DijSDK_EParamId>(0x20000006)},
+            {"ParameterIdImageCaptureFrameRate", static_cast<DijSDK_EParamId>(0x30000007)},
+            {"ParameterIdSensorSize", static_cast<DijSDK_EParamId>(0x20000080)},
+            {"ParameterIdSensorColorChannels", static_cast<DijSDK_EParamId>(0x20000081)},
+            {"ParameterIdSensorRedOffset", static_cast<DijSDK_EParamId>(0x20000082)},
+            {"ParameterIdSensorPixelSizeUm", static_cast<DijSDK_EParamId>(0x30000083)},
+            {"ParameterIdSensorNumberOfBits", static_cast<DijSDK_EParamId>(0x20000084)},
+            {"ParameterIdSensorFrequenciesMHz", static_cast<DijSDK_EParamId>(0x20000085)},
+            {"ParameterIdSensorImageCounter", static_cast<DijSDK_EParamId>(0x20000087)},
+            {"ParameterIdImageModeIndex", static_cast<DijSDK_EParamId>(0x20000100)},
+            {"ParameterIdImageModeVirtualIndex", static_cast<DijSDK_EParamId>(0x20000101)},
+            {"ParameterIdImageModeShadingIndex", static_cast<DijSDK_EParamId>(0x20000102)},
+            {"ParameterIdImageModeSize", static_cast<DijSDK_EParamId>(0x20000103)},
+            {"ParameterIdImageModeSubsampling", static_cast<DijSDK_EParamId>(0x20000104)},
+            {"ParameterIdImageModeAveraging", static_cast<DijSDK_EParamId>(0x20000105)},
+            {"ParameterIdImageModeSumming", static_cast<DijSDK_EParamId>(0x20000106)},
+            {"ParameterIdImageModeBits", static_cast<DijSDK_EParamId>(0x20000107)},
+            {"ParameterIdImageModePreferredAcqMode", static_cast<DijSDK_EParamId>(0x20000108)},
+            {"ParameterIdImageModeScan", static_cast<DijSDK_EParamId>(0x20000109)},
+            {"ParameterIdImageModeName", static_cast<DijSDK_EParamId>(0x4000010A)},
+            {"ParameterIdImageModePixelSizeMicroMeter", static_cast<DijSDK_EParamId>(0x3000010B)},
+            {"ParameterIdImageProcessingOutputFormat", static_cast<DijSDK_EParamId>(0x20000200)},
+            {"ParameterIdImageProcessingWhiteBalance", static_cast<DijSDK_EParamId>(0x30000201)},
+            {"ParameterIdImageProcessingWhiteBalanceMode", static_cast<DijSDK_EParamId>(0x20000202)},
+            {"ParameterIdImageProcessingWhiteBalanceUpdateMode", static_cast<DijSDK_EParamId>(0x20000203)},
+            {"ParameterIdImageProcessingWhiteBalanceRoi", static_cast<DijSDK_EParamId>(0x30000204)},
+            {"ParameterIdImageProcessingGammaCorrection", static_cast<DijSDK_EParamId>(0x30000205)},
+            {"ParameterIdImageProcessingContrast", static_cast<DijSDK_EParamId>(0x30000206)},
+            {"ParameterIdImageProcessingSharpness", static_cast<DijSDK_EParamId>(0x30000207)},
+            {"ParameterIdImageProcessingHighDynamicRange", static_cast<DijSDK_EParamId>(0x10000208)},
+            {"ParameterIdImageProcessingHdrWeight", static_cast<DijSDK_EParamId>(0x30000209)},
+            {"ParameterIdImageProcessingHdrColorGamma", static_cast<DijSDK_EParamId>(0x3000020A)},
+            {"ParameterIdImageProcessingHdrSmoothFieldSize", static_cast<DijSDK_EParamId>(0x2000020B)},
+            {"ParameterIdImageProcessingOrientation", static_cast<DijSDK_EParamId>(0x2000020C)},
+            {"ParameterIdImageProcessingXyzWhite", static_cast<DijSDK_EParamId>(0x3000020D)},
+            {"ParameterIdImageProcessingColorMatrixMode", static_cast<DijSDK_EParamId>(0x2000020E)},
+            {"ParameterIdImageProcessingColorMatrix", static_cast<DijSDK_EParamId>(0x3000020F)},
+            {"ParameterIdImageProcessingIllumination", static_cast<DijSDK_EParamId>(0x20000210)},
+            {"ParameterIdImageProcessingColorBalance", static_cast<DijSDK_EParamId>(0x30000211)},
+            {"ParameterIdImageProcessingColorBalKeepBrightness", static_cast<DijSDK_EParamId>(0x10000212)},
+            {"ParameterIdImageProcessingSaturation", static_cast<DijSDK_EParamId>(0x30000213)},
+            {"ParameterIdImageProcessingBlackBalance", static_cast<DijSDK_EParamId>(0x30000214)},
+            {"ParameterIdImageProcessingBlackBalanceRoi", static_cast<DijSDK_EParamId>(0x30000215)},
+            {"ParameterIdImageProcessingContNoiseFilterLevel", static_cast<DijSDK_EParamId>(0x20000216)},
+            {"ParameterIdImageProcessingContNoiseFilterQuality", static_cast<DijSDK_EParamId>(0x20000217)},
+            {"ParameterIdImageProcessingContNoiseFilterCtrlMode", static_cast<DijSDK_EParamId>(0x20000218)},
+            {"ParameterIdImageProcessingRawBlackOffset16", static_cast<DijSDK_EParamId>(0x20000219)},
+            {"ParameterIdImageProcessingColorSpace", static_cast<DijSDK_EParamId>(0x2000021A)},
+            {"ParameterIdImageProcessingColorSkew", static_cast<DijSDK_EParamId>(0x3000021B)},
+            {"ParameterIdImageProcessingWhiteShadingAvailable", static_cast<DijSDK_EParamId>(0x2000021E)},
+            {"ParameterIdImageProcessingBlackShadingAvailable", static_cast<DijSDK_EParamId>(0x2000021F)},
+            {"ParameterIdImageProcessingWhiteShadingEnable", static_cast<DijSDK_EParamId>(0x10000220)},
+            {"ParameterIdImageProcessingBlackShadingEnable", static_cast<DijSDK_EParamId>(0x10000221)},
+            {"ParameterIdImageProcessingImageType", static_cast<DijSDK_EParamId>(0x20000222)},
+            {"ParameterIdImageProcessingHistogramRed", static_cast<DijSDK_EParamId>(0x20000223)},
+            {"ParameterIdImageProcessingHistogramGreen", static_cast<DijSDK_EParamId>(0x20000224)},
+            {"ParameterIdImageProcessingHistogramGreen2", static_cast<DijSDK_EParamId>(0x20000225)},
+            {"ParameterIdImageProcessingHistogramBlue", static_cast<DijSDK_EParamId>(0x20000226)},
+            {"ParameterIdImageProcessingHistogramGrey", static_cast<DijSDK_EParamId>(0x20000227)},
+            {"ParameterIdImageProcessingHistogramRoi", static_cast<DijSDK_EParamId>(0x30000228)},
+            {"ParameterIdImageProcessingCutHistogramBorder", static_cast<DijSDK_EParamId>(0x10000229)},
+            {"ParameterIdImageProcessingSecondaryError", static_cast<DijSDK_EParamId>(0x20000237)},
+            {"ParameterIdImageProcessingProcessorCores", static_cast<DijSDK_EParamId>(0x20000238)},
+            {"ParameterIdImageProcessingAttachRawImages", static_cast<DijSDK_EParamId>(0x10000267)},
+            {"ParameterIdImageProcessingOutputFifoSize", static_cast<DijSDK_EParamId>(0x20000268)},
+            {"ParameterIdCameraFeaturesCooling", static_cast<DijSDK_EParamId>(0x20000280)},
+            {"ParameterIdCameraFeaturesVentilation", static_cast<DijSDK_EParamId>(0x10000281)},
+            {"ParameterIdCameraFeaturesTriggerOutputPin", static_cast<DijSDK_EParamId>(0x10000282)},
+            {"ParameterIdCameraFeaturesTriggerInputPin", static_cast<DijSDK_EParamId>(0x10000283)},
+            {"ParameterIdCameraFeaturesIlluminationIntensity", static_cast<DijSDK_EParamId>(0x20000290)},
+            {"ParameterIdCameraFeaturesZPosition", static_cast<DijSDK_EParamId>(0x200002A0)},
+            {"ParameterIdExposureControlMode", static_cast<DijSDK_EParamId>(0x20000300)},
+            {"ParameterIdExposureControlAlgorithm", static_cast<DijSDK_EParamId>(0x20000302)},
+            {"ParameterIdExposureControlRoi", static_cast<DijSDK_EParamId>(0x30000303)},
+            {"ParameterIdExposureControlBrightnessPercentage", static_cast<DijSDK_EParamId>(0x20000304)},
+            {"ParameterIdExposureControlExposureLimits", static_cast<DijSDK_EParamId>(0x20000305)},
+            {"ParameterIdExposureControlMaxExposure", static_cast<DijSDK_EParamId>(0x20000305)},
+            {"ParameterIdExposureControlGainLimits", static_cast<DijSDK_EParamId>(0x30000306)},
+            {"ParameterIdExposureControlMaxGain", static_cast<DijSDK_EParamId>(0x30000306)},
+            {"ParameterIdExposureControlMaxOePercentage", static_cast<DijSDK_EParamId>(0x2000030A)},
+            {"ParameterIdExposureControlStatus", static_cast<DijSDK_EParamId>(0x2000030F)},
+            {"ParameterIdGlobalSettingsCameraName", static_cast<DijSDK_EParamId>(0x40000380)},
+            {"ParameterIdGlobalSettingsCameraSerialNumber", static_cast<DijSDK_EParamId>(0x40000381)},
+            {"ParameterIdGlobalSettingsOpenCameraWarning", static_cast<DijSDK_EParamId>(0x20000382)},
+            {"ParameterIdGlobalSettingsCameraBoardNumber", static_cast<DijSDK_EParamId>(0x40000386)},
+            {"ParameterIdGlobalSettingsApiLoggerFileName", static_cast<DijSDK_EParamId>(0x4000038A)},
+            {"ParameterIdGlobalSettingsErrorLoggerFileName", static_cast<DijSDK_EParamId>(0x4000038B)},
+            {"ParameterIdFactorySettingsDefaultFirmwareUpdateFile", static_cast<DijSDK_EParamId>(0x40000400)},
+            {"ParameterIdCustomerSettingsCustomerName", static_cast<DijSDK_EParamId>(0x40000500)},
+            {"ParameterIdCustomerSettingsUserValue1", static_cast<DijSDK_EParamId>(0x40000501)},
+            {"ParameterIdCustomerSettingsUserValue2", static_cast<DijSDK_EParamId>(0x40000502)},
+            {"ParameterIdCustomerSettingsUserValue3", static_cast<DijSDK_EParamId>(0x40000503)},
+            {"ParameterIdCustomerSettingsUserValue4", static_cast<DijSDK_EParamId>(0x40000504)},
+            {"ParameterIdCustomerSettingsUserValue5", static_cast<DijSDK_EParamId>(0x40000505)},
+            {"ParameterIdCustomerSettingsUserValue6", static_cast<DijSDK_EParamId>(0x40000506)},
+            {"ParameterIdCustomerSettingsUserValue7", static_cast<DijSDK_EParamId>(0x40000507)},
+            {"ParameterIdCustomerSettingsUserValue8", static_cast<DijSDK_EParamId>(0x40000508)},
+            {"ParameterIdCustomerSettingsUserValue9", static_cast<DijSDK_EParamId>(0x40000509)},
+            {"ParameterIdCustomerSettingsUserValue10", static_cast<DijSDK_EParamId>(0x4000050A)},
+            {"ParameterIdCustomerSettingsUserValue11", static_cast<DijSDK_EParamId>(0x4000050B)},
+            {"ParameterIdCustomerSettingsUserValue12", static_cast<DijSDK_EParamId>(0x4000050C)},
+            {"ParameterIdCustomerSettingsUserValue13", static_cast<DijSDK_EParamId>(0x4000050D)},
+            {"ParameterIdCustomerSettingsUserValue14", static_cast<DijSDK_EParamId>(0x4000050E)},
+            {"ParameterIdCustomerSettingsUserValue15", static_cast<DijSDK_EParamId>(0x4000050F)},
+            {"ParameterIdCustomerSettingsUserValue16", static_cast<DijSDK_EParamId>(0x40000510)},
+            {"ParameterIdCustomerSettingsSdkEnabledFeatures", static_cast<DijSDK_EParamId>(0x40000511)},
+            {"ParameterIdCustomerSettingsAppEnabledFeatures", static_cast<DijSDK_EParamId>(0x40000512)},
+            {"ParameterIdEndMarker", static_cast<DijSDK_EParamId>(0x7FFFFFFF)},
+        };
+        for (const auto p : parameters) {
+            LogProperty(p);
+        }
+    }
 
-DijSDK_Handle ProkyonCamera::handle() {
-	return m_handle;
-}
+    void ProkyonCamera::LogProperty(const SDKParameter parameter) const {
+        error_t out = -1024;
+        if (m_p_camera != nullptr) {
+            out = DijSDK_HasParameter(m_p_camera.get(), parameter.id);
+        }
 
-const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774Bf12B70452BF23"};
-const unsigned int ProkyonCamera::M_S_EXPECTED_CAMERA_COUNT{1};
-const std::string ProkyonCamera::M_S_CAMERA_NAME{"Prokyon"};
-const std::string ProkyonCamera::M_S_CAMERA_DESCRIPTION{"Jenoptik ProgRes GRYPHAX Prokyon Microscope Camera"};
-const std::vector<unsigned char> ProkyonCamera::M_S_TEST_IMAGE{0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0x80, 0x80, 0x80, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00};
-
-// debug
-
-void ProkyonCamera::LogProperties() const {
-	std::vector<Parameter> parameters{
-		{"ParameterIdImageCaptureExposureTimeUsec", static_cast<DijSDK_EParamId>(0x20000000)},
-	{"ParameterIdImageCaptureGain", static_cast<DijSDK_EParamId>(0x30000001)},
-	{"ParameterIdImageCaptureRoi", static_cast<DijSDK_EParamId>(0x20000002)},
-	{"ParameterIdImageCaptureTriggerInputMode", static_cast<DijSDK_EParamId>(0x20000003)},
-	{"ParameterIdImageCaptureTriggerOutputModeT1", static_cast<DijSDK_EParamId>(0x20000004)},
-	{"ParameterIdImageCaptureTriggerOutputModeT2", static_cast<DijSDK_EParamId>(0x20000005)},
-	{"ParameterIdImageCaptureTriggerOutputModeT3", static_cast<DijSDK_EParamId>(0x20000006)},
-	{"ParameterIdImageCaptureFrameRate", static_cast<DijSDK_EParamId>(0x30000007)},
-	{"ParameterIdSensorSize", static_cast<DijSDK_EParamId>(0x20000080)},
-	{"ParameterIdSensorColorChannels", static_cast<DijSDK_EParamId>(0x20000081)},
-	{"ParameterIdSensorRedOffset", static_cast<DijSDK_EParamId>(0x20000082)},
-	{"ParameterIdSensorPixelSizeUm", static_cast<DijSDK_EParamId>(0x30000083)},
-	{"ParameterIdSensorNumberOfBits", static_cast<DijSDK_EParamId>(0x20000084)},
-	{"ParameterIdSensorFrequenciesMHz", static_cast<DijSDK_EParamId>(0x20000085)},
-	{"ParameterIdSensorImageCounter", static_cast<DijSDK_EParamId>(0x20000087)},
-	{"ParameterIdImageModeIndex", static_cast<DijSDK_EParamId>(0x20000100)},
-	{"ParameterIdImageModeVirtualIndex", static_cast<DijSDK_EParamId>(0x20000101)},
-	{"ParameterIdImageModeShadingIndex", static_cast<DijSDK_EParamId>(0x20000102)},
-	{"ParameterIdImageModeSize", static_cast<DijSDK_EParamId>(0x20000103)},
-	{"ParameterIdImageModeSubsampling", static_cast<DijSDK_EParamId>(0x20000104)},
-	{"ParameterIdImageModeAveraging", static_cast<DijSDK_EParamId>(0x20000105)},
-	{"ParameterIdImageModeSumming", static_cast<DijSDK_EParamId>(0x20000106)},
-	{"ParameterIdImageModeBits", static_cast<DijSDK_EParamId>(0x20000107)},
-	{"ParameterIdImageModePreferredAcqMode", static_cast<DijSDK_EParamId>(0x20000108)},
-	{"ParameterIdImageModeScan", static_cast<DijSDK_EParamId>(0x20000109)},
-	{"ParameterIdImageModeName", static_cast<DijSDK_EParamId>(0x4000010A)},
-	{"ParameterIdImageModePixelSizeMicroMeter", static_cast<DijSDK_EParamId>(0x3000010B)},
-	{"ParameterIdImageProcessingOutputFormat", static_cast<DijSDK_EParamId>(0x20000200)},
-	{"ParameterIdImageProcessingWhiteBalance", static_cast<DijSDK_EParamId>(0x30000201)},
-	{"ParameterIdImageProcessingWhiteBalanceMode", static_cast<DijSDK_EParamId>(0x20000202)},
-	{"ParameterIdImageProcessingWhiteBalanceUpdateMode", static_cast<DijSDK_EParamId>(0x20000203)},
-	{"ParameterIdImageProcessingWhiteBalanceRoi", static_cast<DijSDK_EParamId>(0x30000204)},
-	{"ParameterIdImageProcessingGammaCorrection", static_cast<DijSDK_EParamId>(0x30000205)},
-	{"ParameterIdImageProcessingContrast", static_cast<DijSDK_EParamId>(0x30000206)},
-	{"ParameterIdImageProcessingSharpness", static_cast<DijSDK_EParamId>(0x30000207)},
-	{"ParameterIdImageProcessingHighDynamicRange", static_cast<DijSDK_EParamId>(0x10000208)},
-	{"ParameterIdImageProcessingHdrWeight", static_cast<DijSDK_EParamId>(0x30000209)},
-	{"ParameterIdImageProcessingHdrColorGamma", static_cast<DijSDK_EParamId>(0x3000020A)},
-	{"ParameterIdImageProcessingHdrSmoothFieldSize", static_cast<DijSDK_EParamId>(0x2000020B)},
-	{"ParameterIdImageProcessingOrientation", static_cast<DijSDK_EParamId>(0x2000020C)},
-	{"ParameterIdImageProcessingXyzWhite", static_cast<DijSDK_EParamId>(0x3000020D)},
-	{"ParameterIdImageProcessingColorMatrixMode", static_cast<DijSDK_EParamId>(0x2000020E)},
-	{"ParameterIdImageProcessingColorMatrix", static_cast<DijSDK_EParamId>(0x3000020F)},
-	{"ParameterIdImageProcessingIllumination", static_cast<DijSDK_EParamId>(0x20000210)},
-	{"ParameterIdImageProcessingColorBalance", static_cast<DijSDK_EParamId>(0x30000211)},
-	{"ParameterIdImageProcessingColorBalKeepBrightness", static_cast<DijSDK_EParamId>(0x10000212)},
-	{"ParameterIdImageProcessingSaturation", static_cast<DijSDK_EParamId>(0x30000213)},
-	{"ParameterIdImageProcessingBlackBalance", static_cast<DijSDK_EParamId>(0x30000214)},
-	{"ParameterIdImageProcessingBlackBalanceRoi", static_cast<DijSDK_EParamId>(0x30000215)},
-	{"ParameterIdImageProcessingContNoiseFilterLevel", static_cast<DijSDK_EParamId>(0x20000216)},
-	{"ParameterIdImageProcessingContNoiseFilterQuality", static_cast<DijSDK_EParamId>(0x20000217)},
-	{"ParameterIdImageProcessingContNoiseFilterCtrlMode", static_cast<DijSDK_EParamId>(0x20000218)},
-	{"ParameterIdImageProcessingRawBlackOffset16", static_cast<DijSDK_EParamId>(0x20000219)},
-	{"ParameterIdImageProcessingColorSpace", static_cast<DijSDK_EParamId>(0x2000021A)},
-	{"ParameterIdImageProcessingColorSkew", static_cast<DijSDK_EParamId>(0x3000021B)},
-	{"ParameterIdImageProcessingWhiteShadingAvailable", static_cast<DijSDK_EParamId>(0x2000021E)},
-	{"ParameterIdImageProcessingBlackShadingAvailable", static_cast<DijSDK_EParamId>(0x2000021F)},
-	{"ParameterIdImageProcessingWhiteShadingEnable", static_cast<DijSDK_EParamId>(0x10000220)},
-	{"ParameterIdImageProcessingBlackShadingEnable", static_cast<DijSDK_EParamId>(0x10000221)},
-	{"ParameterIdImageProcessingImageType", static_cast<DijSDK_EParamId>(0x20000222)},
-	{"ParameterIdImageProcessingHistogramRed", static_cast<DijSDK_EParamId>(0x20000223)},
-	{"ParameterIdImageProcessingHistogramGreen", static_cast<DijSDK_EParamId>(0x20000224)},
-	{"ParameterIdImageProcessingHistogramGreen2", static_cast<DijSDK_EParamId>(0x20000225)},
-	{"ParameterIdImageProcessingHistogramBlue", static_cast<DijSDK_EParamId>(0x20000226)},
-	{"ParameterIdImageProcessingHistogramGrey", static_cast<DijSDK_EParamId>(0x20000227)},
-	{"ParameterIdImageProcessingHistogramRoi", static_cast<DijSDK_EParamId>(0x30000228)},
-	{"ParameterIdImageProcessingCutHistogramBorder", static_cast<DijSDK_EParamId>(0x10000229)},
-	{"ParameterIdImageProcessingSecondaryError", static_cast<DijSDK_EParamId>(0x20000237)},
-	{"ParameterIdImageProcessingProcessorCores", static_cast<DijSDK_EParamId>(0x20000238)},
-	{"ParameterIdImageProcessingAttachRawImages", static_cast<DijSDK_EParamId>(0x10000267)},
-	{"ParameterIdImageProcessingOutputFifoSize", static_cast<DijSDK_EParamId>(0x20000268)},
-	{"ParameterIdCameraFeaturesCooling", static_cast<DijSDK_EParamId>(0x20000280)},
-	{"ParameterIdCameraFeaturesVentilation", static_cast<DijSDK_EParamId>(0x10000281)},
-	{"ParameterIdCameraFeaturesTriggerOutputPin", static_cast<DijSDK_EParamId>(0x10000282)},
-	{"ParameterIdCameraFeaturesTriggerInputPin", static_cast<DijSDK_EParamId>(0x10000283)},
-	{"ParameterIdCameraFeaturesIlluminationIntensity", static_cast<DijSDK_EParamId>(0x20000290)},
-	{"ParameterIdCameraFeaturesZPosition", static_cast<DijSDK_EParamId>(0x200002A0)},
-	{"ParameterIdExposureControlMode", static_cast<DijSDK_EParamId>(0x20000300)},
-	{"ParameterIdExposureControlAlgorithm", static_cast<DijSDK_EParamId>(0x20000302)},
-	{"ParameterIdExposureControlRoi", static_cast<DijSDK_EParamId>(0x30000303)},
-	{"ParameterIdExposureControlBrightnessPercentage", static_cast<DijSDK_EParamId>(0x20000304)},
-	{"ParameterIdExposureControlExposureLimits", static_cast<DijSDK_EParamId>(0x20000305)},
-	{"ParameterIdExposureControlMaxExposure", static_cast<DijSDK_EParamId>(0x20000305)},
-	{"ParameterIdExposureControlGainLimits", static_cast<DijSDK_EParamId>(0x30000306)},
-	{"ParameterIdExposureControlMaxGain", static_cast<DijSDK_EParamId>(0x30000306)},
-	{"ParameterIdExposureControlMaxOePercentage", static_cast<DijSDK_EParamId>(0x2000030A)},
-	{"ParameterIdExposureControlStatus", static_cast<DijSDK_EParamId>(0x2000030F)},
-	{"ParameterIdGlobalSettingsCameraName", static_cast<DijSDK_EParamId>(0x40000380)},
-	{"ParameterIdGlobalSettingsCameraSerialNumber", static_cast<DijSDK_EParamId>(0x40000381)},
-	{"ParameterIdGlobalSettingsOpenCameraWarning", static_cast<DijSDK_EParamId>(0x20000382)},
-	{"ParameterIdGlobalSettingsCameraBoardNumber", static_cast<DijSDK_EParamId>(0x40000386)},
-	{"ParameterIdGlobalSettingsApiLoggerFileName", static_cast<DijSDK_EParamId>(0x4000038A)},
-	{"ParameterIdGlobalSettingsErrorLoggerFileName", static_cast<DijSDK_EParamId>(0x4000038B)},
-	{"ParameterIdFactorySettingsDefaultFirmwareUpdateFile", static_cast<DijSDK_EParamId>(0x40000400)},
-	{"ParameterIdCustomerSettingsCustomerName", static_cast<DijSDK_EParamId>(0x40000500)},
-	{"ParameterIdCustomerSettingsUserValue1", static_cast<DijSDK_EParamId>(0x40000501)},
-	{"ParameterIdCustomerSettingsUserValue2", static_cast<DijSDK_EParamId>(0x40000502)},
-	{"ParameterIdCustomerSettingsUserValue3", static_cast<DijSDK_EParamId>(0x40000503)},
-	{"ParameterIdCustomerSettingsUserValue4", static_cast<DijSDK_EParamId>(0x40000504)},
-	{"ParameterIdCustomerSettingsUserValue5", static_cast<DijSDK_EParamId>(0x40000505)},
-	{"ParameterIdCustomerSettingsUserValue6", static_cast<DijSDK_EParamId>(0x40000506)},
-	{"ParameterIdCustomerSettingsUserValue7", static_cast<DijSDK_EParamId>(0x40000507)},
-	{"ParameterIdCustomerSettingsUserValue8", static_cast<DijSDK_EParamId>(0x40000508)},
-	{"ParameterIdCustomerSettingsUserValue9", static_cast<DijSDK_EParamId>(0x40000509)},
-	{"ParameterIdCustomerSettingsUserValue10", static_cast<DijSDK_EParamId>(0x4000050A)},
-	{"ParameterIdCustomerSettingsUserValue11", static_cast<DijSDK_EParamId>(0x4000050B)},
-	{"ParameterIdCustomerSettingsUserValue12", static_cast<DijSDK_EParamId>(0x4000050C)},
-	{"ParameterIdCustomerSettingsUserValue13", static_cast<DijSDK_EParamId>(0x4000050D)},
-	{"ParameterIdCustomerSettingsUserValue14", static_cast<DijSDK_EParamId>(0x4000050E)},
-	{"ParameterIdCustomerSettingsUserValue15", static_cast<DijSDK_EParamId>(0x4000050F)},
-	{"ParameterIdCustomerSettingsUserValue16", static_cast<DijSDK_EParamId>(0x40000510)},
-	{"ParameterIdCustomerSettingsSdkEnabledFeatures", static_cast<DijSDK_EParamId>(0x40000511)},
-	{"ParameterIdCustomerSettingsAppEnabledFeatures", static_cast<DijSDK_EParamId>(0x40000512)},
-	{"ParameterIdEndMarker", static_cast<DijSDK_EParamId>(0x7FFFFFFF)},
-	};
-	for (const auto p : parameters) {
-		LogProperty(p);
-	}
-}
-
-void ProkyonCamera::LogProperty(const Parameter parameter) const {
-	error_t out = -1024;
-	if (handle_valid()) {
-		out = DijSDK_HasParameter(m_handle, parameter.id);
-	}
-
-	std::stringstream ss;
-	ss << parameter.name << " (" << parameter.id << "): " << out;
-	LogMessage(ss.str(), true);
-}
+        std::stringstream ss;
+        ss << parameter.name << " (" << parameter.id << "): " << out;
+        LogMessage(ss.str(), true);
+    }
+} // namespace Prokyon
