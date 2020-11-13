@@ -89,6 +89,10 @@ namespace Prokyon {
         }
     }
 
+    bool Camera::is_ready() const {
+        return m_camera != nullptr;
+    }
+
     Camera::operator CameraHandle() const {
         assert(m_camera != nullptr);
         return m_camera;

@@ -12,46 +12,42 @@
 namespace Prokyon {
     // public member functions
     Image::Image(Camera *p_camera) :
-        m_component_count{0},
-        m_component_names{NameMap()},
-        m_bits_per_channel{0},
-        m_bits_per_pixel{0},
-        m_bytes_per_pixel{0},
-        m_size{0, 0},
-        m_bytes{0},
-        m_data{}
-    {
-        ImageHandle image_handle;
-        void *p_raw_data = nullptr;
-        auto result = DijSDK_GetImage(*p_camera, &image_handle, &p_raw_data);
+        m_p_camera{p_camera},
+        m_data(3000u * 4000u, 0) // exact size of sensor for Prokyon Gryphax
+    {}
+
+    void Image::acquire() {
+        // fn
+        auto result = DijSDK_StartAcquisition(*m_p_camera);
         if (result != E_OK) {
             assert(false);
             // todo
         }
 
-        auto component_count = extract_component_count(image_handle);
-        auto component_names = build_component_name_map(component_count);
-        auto bits_per_channel = extract_bits_per_channel(image_handle);
-        auto bits_per_pixel = compute_bits_per_pixel(component_count, bits_per_channel);
-        auto bytes_per_pixel = compute_bytes_per_pixel(bits_per_pixel);
-        auto size = extract_size(image_handle);
-        auto bytes = compute_image_bytes(size, component_count, bytes_per_pixel);
-        auto data = copy_image_data(p_raw_data, bytes);
+        // fn
+        ImageHandle image_handle;
+        void *p_raw_data = nullptr;
+        result = DijSDK_GetImage(*m_p_camera, &image_handle, &p_raw_data);
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
 
+        m_data = copy_image_data(p_raw_data);
+
+        // fn
         result = DijSDK_ReleaseImage(image_handle);
         if (result != E_OK) {
             assert(false);
             // todo
         }
 
-        m_component_count = component_count;
-        m_component_names = component_names;
-        m_bits_per_channel = bits_per_channel;
-        m_bits_per_pixel = bits_per_pixel;
-        m_bytes_per_pixel = bytes_per_pixel;
-        m_size = size;
-        m_bytes = bytes;
-        m_data = data;
+        // fn
+        result = DijSDK_AbortAcquisition(*m_p_camera);
+        if (result != E_OK) {
+            assert(false);
+            // todo
+        }
     }
 
     ImageBuffer Image::get_image_buffer() {
@@ -63,43 +59,101 @@ namespace Prokyon {
     }
 
     unsigned Image::get_number_of_components() const {
-        return m_component_count;
+        return get_component_count();
     }
 
     std::string Image::get_component_name(unsigned component) const {
-        return m_component_names.at(component);
+        return get_component_name_map().at(component);
     }
 
     long Image::get_image_buffer_size() const {
-        return m_bytes;
+        return static_cast<long>(m_data.size());
     }
 
     unsigned Image::get_image_width() const {
-        return m_size[0];
+        return extract_size()[0];
     }
 
     unsigned Image::get_image_height() const {
-        return m_size[1];
+        return extract_size()[1];
     }
 
     unsigned Image::get_image_bytes_per_pixel() const {
-        return m_bytes_per_pixel;
+        return get_bytes_per_px();
     }
 
     unsigned Image::get_bit_depth() const {
-        return m_bits_per_channel;
+        return extract_bits_per_component();
     }
 
     // private
+    Image::ImageData Image::copy_image_data(void *p_data) {
+        assert(p_data != nullptr);
 
-    unsigned Image::extract_component_count(ImageHandle image) {
-        assert(image != nullptr);
-        auto p = get_numeric_parameter<int>(image, ParameterIdImageProcessingOutputFormat, 1);
+        auto px = get_px_count();
+        long bytes = px * get_bytes_per_px();
+
+        auto component_count = get_component_count();
+        auto component_count_hw = get_component_count_hw();
+        assert(component_count_hw <= component_count);
+
+        auto pointer = static_cast<unsigned char *>(p_data);
+        auto bytes_per_c = get_bytes_per_component();
+        ImageData out;
+        if (component_count_hw < component_count) {
+            // color modes except BGRA should hit this
+            out = ImageData(bytes, 0);
+            for (long p = 0; p < px; ++p) {
+                for (unsigned c = 0; c < component_count; ++c) {
+                    for (unsigned b = 0; b < bytes_per_c; ++b) {
+                        auto index = p * component_count * bytes_per_c + c * bytes_per_c + b;
+                        if (c < component_count_hw) {
+                            out[index] = *pointer;
+                            pointer += sizeof(*pointer);
+                        }
+                        else {
+                            // MM expects 4 components, camera has only 3
+                            // so we have to fill alpha channel with fully opaque
+                            // (except BGRA mode)
+                            out[index] = static_cast<unsigned char>(0xffu);
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            // grayscale modes and BGRA should hit this
+            out = ImageData(pointer, pointer + (sizeof(*pointer) * bytes));
+        }
+        assert(out.size() == bytes);
+        return out;
+    }
+
+    long Image::get_byte_count() const {
+        return get_bytes_per_px() * get_px_count();
+    }
+
+    unsigned Image::get_bytes_per_px() const {
+        return get_bits_per_px() / 8;
+    }
+
+    unsigned Image::get_bits_per_px() const {
+        unsigned out = extract_bits_per_component() * get_component_count();
+        return out;
+    }
+
+    unsigned Image::get_component_count() const {
+        if (m_p_camera == nullptr) {
+            return 1;
+        }
+
+        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageProcessingOutputFormat, 1);
         if (p.error) {
             // TODO handle error
             assert(false);
         }
         auto entry = to_unsigned(p.value.at(0));
+
         unsigned count = 0;
         switch (entry) {
             case (DijSDK_EImageFormatNotSpecified):
@@ -128,39 +182,86 @@ namespace Prokyon {
         return count;
     }
 
-    Image::NameMap Image::build_component_name_map(unsigned component_count) {
-        assert(component_count == 1 || component_count == 4);
-        NameMap map;
-        switch (component_count) {
-            case 1:
-                map = M_S_GRAY_COMPONENT_NAMES;
-                break;
-            case 4:
-                map = M_S_RGBA_COMPONENT_NAMES;
-                break;
-            default:
-                assert(false);
-        }
-        assert(map.size() == component_count);
-        return map;
+    long Image::get_byte_count_hw() const {
+        return get_bytes_per_px_hw() * get_px_count();
     }
 
-    unsigned Image::extract_bits_per_channel(ImageHandle image) {
-        assert(image != nullptr);
-        auto p = get_numeric_parameter<int>(image, ParameterIdImageProcessingOutputFormat, 1);
+    unsigned Image::get_bytes_per_px_hw() const {
+        return get_bits_per_px_hw() / 8;
+    }
+
+    unsigned Image::get_bits_per_px_hw() const {
+        unsigned out = extract_bits_per_component() * get_component_count_hw();
+        return out;
+    }
+
+    unsigned Image::get_component_count_hw() const {
+        if (m_p_camera == nullptr) {
+            return 1;
+        }
+
+        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageProcessingOutputFormat, 1);
         if (p.error) {
             // TODO handle error
             assert(false);
         }
         auto entry = to_unsigned(p.value.at(0));
-        unsigned bits = 0;
+
+        unsigned count = 0;
         switch (entry) {
             case (DijSDK_EImageFormatNotSpecified):
-                // TODO handle this case
                 assert(false);
                 break;
             case (DijSDK_EImageFormatBayerRaw16):
-                // TODO handle this case
+                assert(false);
+                break;
+            case (DijSDK_EImageFormatGrey8):
+            case (DijSDK_EImageFormatGrey16):
+            case (DijSDK_EImageFormatGreyRaw16):
+                count = 1;
+                break;
+            case (DijSDK_EImageFormatRGB888):
+            case (DijSDK_EImageFormatRGB161616):
+            case (DijSDK_EImageFormatBGR888):
+                count = 3;
+                break;
+            case (DijSDK_EImageFormatBGR888A):
+                count = 4;
+                break;
+            default:
+                assert(false);
+        }
+        assert(count == 1 || count == 3 || count == 4);
+        return count;
+    }
+
+    long Image::get_px_count() const {
+        Size size = extract_size();
+        return static_cast<long>(size[0]) * size[1];
+    }
+
+    unsigned Image::get_bytes_per_component() const {
+        return extract_bits_per_component() / 8;
+    }
+
+    unsigned Image::extract_bits_per_component() const {
+        if (m_p_camera == nullptr) {
+            return 8;
+        }
+
+        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageProcessingOutputFormat, 1);
+        if (p.error) {
+            // TODO handle error
+            assert(false);
+        }
+        auto entry = to_unsigned(p.value.at(0));
+
+        unsigned bits = 0;
+        switch (entry) {
+            case (DijSDK_EImageFormatNotSpecified):
+                assert(false);
+                break;
+            case (DijSDK_EImageFormatBayerRaw16):
                 assert(false);
                 break;
             case (DijSDK_EImageFormatGrey8):
@@ -177,31 +278,17 @@ namespace Prokyon {
             default:
                 assert(false);
         }
-        assert(bits == 8 || bits == 16);
+        assert(bits != 0 && bits % 8 == 0);
         return bits;
     }
 
-    unsigned Image::compute_bits_per_pixel(unsigned component_count, unsigned bits_per_pixel) {
-        assert(component_count == 1 || component_count == 4);
-        assert(bits_per_pixel == 8 || bits_per_pixel == 16);
-        auto out = component_count * bits_per_pixel;
-        assert(out == 8 || out == 16 || out == 32 || out == 64);
-        return out;
-    }
+    Image::Size Image::extract_size() const {
+        if (m_p_camera == nullptr) {
+            return {1, 1};
+        }
 
-    unsigned Image::compute_bytes_per_pixel(unsigned bits_per_pixel) {
-        assert(bits_per_pixel == 8 || bits_per_pixel == 16);
-        auto out = bits_per_pixel / 8;
-        auto rem = bits_per_pixel % 8;
-        assert(out == 1 || out == 2);
-        assert(rem == 0);
-        return out;
-    }
-
-    Image::Size Image::extract_size(ImageHandle image) {
-        assert(image != nullptr);
         unsigned COUNT = 2;
-        auto p = get_numeric_parameter<int>(image, ParameterIdImageModeSize, COUNT);
+        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeSize, COUNT);
         if (p.error) {
             // TODO handle error
             assert(false);
@@ -212,27 +299,19 @@ namespace Prokyon {
         return to_unsigned(p.value);
     }
 
-    long Image::compute_image_bytes(std::vector<unsigned> size, unsigned component_count, unsigned bytes_per_pixel) {
-        assert(size.size() == 2);
-        assert(0 < size[0]);
-        assert(0 < size[1]);
-        assert(component_count == 1 || component_count == 4);
-        assert(bytes_per_pixel == 1 || bytes_per_pixel == 2);
-        auto out = static_cast<long>(size[0])
-            * static_cast<long>(size[1])
-            * static_cast<long>(component_count)
-            * static_cast<long>(bytes_per_pixel);
-        assert(0 < out);
-        return out;
-    }
-
-    Image::ImageData Image::copy_image_data(void *p_data, long bytes) {
-        assert(p_data != nullptr);
-        assert(0 < bytes);
-        auto pointer = static_cast<unsigned char *>(p_data);
-        ImageData out(pointer, pointer + bytes);
-        assert(out.size() == bytes);
-        return out;
+    Image::NameMap Image::get_component_name_map() const {
+        NameMap map;
+        switch (get_component_count()) {
+            case 1:
+                map = M_S_GRAY_COMPONENT_NAMES;
+                break;
+            case 4:
+                map = M_S_RGBA_COMPONENT_NAMES;
+                break;
+            default:
+                assert(false);
+        }
+        return map;
     }
 
     // private static const members

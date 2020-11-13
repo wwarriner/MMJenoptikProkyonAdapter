@@ -19,6 +19,8 @@ namespace Prokyon {
         Status initialize(const DijSDK_CameraKey *key, std::string name, std::string description, const int camera_index = 1);
         Status shutdown();
 
+        bool is_ready() const;
+
         operator CameraHandle() const;
         operator CameraHandle();
         const CameraHandle &operator*() const;

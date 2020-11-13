@@ -4,7 +4,6 @@
 #define PROKYON_IMAGE_H_
 
 #include "CommonDef.h"
-#include "ImageInterface.h"
 
 #include <map>
 #include <string>
@@ -13,9 +12,11 @@
 namespace Prokyon {
     class Camera;
 
-    class Image : public ImageInterface {
+    class Image {
     public:
         Image(Camera *p_camera);
+
+        void acquire();
 
         virtual ImageBuffer get_image_buffer();
         virtual ImageBuffer get_image_buffer() const;
@@ -28,28 +29,33 @@ namespace Prokyon {
         virtual unsigned get_bit_depth() const;
 
     private:
-        using NameMap = std::map<unsigned, std::string>;
         using ImageData = std::vector<unsigned char>;
         using Size = std::vector<unsigned>;
+        using NameMap = std::map<unsigned, std::string>;
 
     private:
-        static unsigned extract_component_count(ImageHandle image);
-        static NameMap build_component_name_map(unsigned component_count);
-        static unsigned extract_bits_per_channel(ImageHandle image);
-        static unsigned compute_bits_per_pixel(unsigned component_count, unsigned bits_per_channel);
-        static unsigned compute_bytes_per_pixel(unsigned bits_per_pixel);
-        static Size extract_size(ImageHandle image);
-        static long compute_image_bytes(std::vector<unsigned> size, unsigned component_count, unsigned bytes_per_pixel);
-        static ImageData copy_image_data(void *p_data, long bytes);
+        ImageData copy_image_data(void *p_data);
+
+        long get_byte_count() const;
+        unsigned get_bytes_per_px() const;
+        unsigned get_bits_per_px() const;
+        unsigned get_component_count() const; // ParameterIdImageProcessingOutputFormat
+
+        long get_byte_count_hw() const;
+        unsigned get_bytes_per_px_hw() const;
+        unsigned get_bits_per_px_hw() const;
+        unsigned get_component_count_hw() const; // ParameterIdImageProcessingOutputFormat
+
+        long get_px_count() const;
+
+        unsigned get_bytes_per_component() const;
+        unsigned extract_bits_per_component() const; // ParameterIdImageModeBits
+        Size extract_size() const; // ParameterIdImageModeSize
+
+        NameMap get_component_name_map() const;
 
     private:
-        unsigned m_component_count;
-        NameMap m_component_names;
-        unsigned m_bits_per_channel;
-        unsigned m_bits_per_pixel;
-        unsigned m_bytes_per_pixel;
-        Size m_size;
-        long m_bytes;
+        Camera *m_p_camera;
         ImageData m_data;
 
         static const NameMap M_S_RGBA_COMPONENT_NAMES;

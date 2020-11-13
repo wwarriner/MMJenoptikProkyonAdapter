@@ -1,10 +1,6 @@
 #include "ProkyonCamera.h"
 
-#include "NullImage.h"
 #include "Image.h"
-#include "TestImage.h"
-#include "TestRegionOfInterest.h"
-#include "TestAcquisitionParameters.h"
 #include "AcquisitionParameters.h"
 #include "RegionOfInterest.h"
 #include "Camera.h"
@@ -18,6 +14,7 @@
 #include <cassert>
 #include <sstream>
 #include <memory>
+#include <map>
 #include <algorithm> // debug
 
 // ModuleInterface.h
@@ -47,11 +44,10 @@ namespace Prokyon {
     // DeviceBase
     ProkyonCamera::ProkyonCamera() : CCameraBase<ProkyonCamera>(),
         m_p_camera{std::make_unique<Camera>()},
-        m_p_image{std::make_unique<NullImage>()},
+        m_p_image{nullptr},
         m_p_acq_parameters{nullptr},
         m_p_roi{nullptr}
-    {
-    }
+    {}
 
     int ProkyonCamera::Initialize() {
         LogMessage("initializing");
@@ -67,6 +63,9 @@ namespace Prokyon {
                 ss << "  " << m_p_camera->get_guid() << "\n";
                 LogMessage(ss.str());
 
+                LogMessage("creating image buffer");
+                m_p_image = std::make_unique<Image>(m_p_camera.get());
+
                 LogMessage("creating roi");
                 m_p_roi = std::make_unique<RegionOfInterest>(m_p_camera.get());
                 ss.str("");
@@ -77,6 +76,58 @@ namespace Prokyon {
                 LogMessage("creating acquisition parameters");
                 m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get());
                 LogMessage("initialized!");
+
+                LogMessage("setting properties");
+                /*
+                Create string property containing list of allowed color modes
+                    - List is values in DijSDK_EImageFormat
+                    - Create bi-map of DijSDK_EImageFormat <-> human readable strings
+                        - Enum, so hardcode these
+                    - Add method handler that sets hardware based when property updated
+                Create string property containing list of allowed imaging modes
+                    - List is values from ParameterIdImageModeVirtualIndex and ParameterIdImageModeName
+                    - Create bi-map of ParameterIdImageModeIndex <-> human readable strings
+                        - Create programmatically from parameterif
+                    - Add method handler that sets hardware based when property updated
+                    - Also update binning property based on mode binning from ParameterIdImageModeAveraging or ParameterIdImageModeSumming
+                Investigate other properties (there are lots...)
+
+                Consider building a vector of structs
+                    struct PropertyDefinition {
+                        std::string name
+                        int offset
+                        MMDeviceConstants::PropertyType property_type
+                        std::any initial_value
+                        enum -> LimitType limit_type (vec of values or range limits)
+                        std::vector<std::any> limits
+                    }
+                    - assert initial_value is appropriate type for property_type
+                    - assert limits has exactly 2 if limit_type is range
+                    - assert for each limits is appropriate type
+
+                */
+                std::vector<std::string> test_allowed{"RGB 3 x 8 bpp", "Gray 8 bpp", "Gray 16 bpp"};
+                std::map<std::string, DijSDK_EImageFormat> forward{
+                    {test_allowed[0], DijSDK_EImageFormatRGB888},
+                    {test_allowed[1], DijSDK_EImageFormatGrey8},
+                    {test_allowed[2], DijSDK_EImageFormatGrey16}
+                };
+                std::string name{"Color Mode"};
+                this->CreatePropertyWithHandler(name.c_str(), test_allowed[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_color_mode, false);
+                this->SetAllowedValues(name.c_str(), test_allowed);
+                // create integer properties with handlers
+                // one for format (bayer, gray, rgb, etc)
+                //  methods
+                //
+                // one for image mode (resolution, bpp, avging, shot count)
+                this->UpdateStatus();
+                auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{forward[test_allowed[0]]});
+                if (result) {
+                    return DEVICE_NOT_CONNECTED; // ??
+                }
+                return DEVICE_OK;
+                LogMessage("done");
+
                 out = DEVICE_OK;
                 break;
             }
@@ -95,6 +146,7 @@ namespace Prokyon {
             default:
                 assert(false);
         }
+
         return out;
     }
 
@@ -105,9 +157,9 @@ namespace Prokyon {
         switch (status) {
             case Camera::Status::state_changed:
             {
-                m_p_image.reset(nullptr);
-                m_p_roi.reset(nullptr);
                 m_p_acq_parameters.reset(nullptr);
+                m_p_roi.reset(nullptr);
+                m_p_image.reset(nullptr);
                 out = DEVICE_OK;
                 break;
             }
@@ -187,30 +239,8 @@ namespace Prokyon {
     // CameraBase
     int ProkyonCamera::SnapImage() {
         LogMessage("snapping image");
-        auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{DijSDK_EImageFormatGrey8});
-        if (result != E_OK) {
-            assert(false);
-            // todo
-        }
-        result = DijSDK_StartAcquisition(*(m_p_camera.get())); // TODO this pair in camera
-        if (result != E_OK) {
-            assert(false);
-            // todo
-        }
-        m_p_image = std::make_unique<Image>(m_p_camera.get());
-        result = DijSDK_AbortAcquisition(*(m_p_camera.get()));
-        if (result != E_OK) {
-            assert(false);
-            // todo
-        }
 
-        //LogMessage("creating test roi");
-        //ROI roi{0, 0, TestImage::width(), TestImage::height()};
-        //m_p_roi = std::make_unique<TestRegionOfInterest>(roi);
-        //LogMessage("creating test acquisition parameters");
-        //m_p_acq_parameters = std::make_unique<TestAcquisitionParameters>();
-        //LogMessage("creating test image");
-        //m_p_image = std::make_unique<TestImage>(m_p_acq_parameters.get(), m_p_roi.get());
+        m_p_image->acquire();
 
         std::stringstream ss;
         ss << "image handle: " << m_p_image << "\n";
@@ -236,8 +266,12 @@ namespace Prokyon {
 
     const unsigned char *ProkyonCamera::GetImageBuffer() {
         LogMessage("getting image buffer");
-        assert(m_p_image != nullptr);
-        return m_p_image->get_image_buffer();
+        if (m_p_image != nullptr) {
+            return m_p_image->get_image_buffer();
+        }
+        else {
+            return nullptr;
+        }
     }
 
     unsigned ProkyonCamera::GetNumberOfComponents() const {
@@ -312,7 +346,11 @@ namespace Prokyon {
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            return m_p_image->get_bit_depth();
+            auto v = m_p_image->get_bit_depth();
+            std::stringstream ss;
+            ss << "bit depth: " << v;
+            LogMessage(ss.str());
+            return v;
         }
     }
 
@@ -322,12 +360,25 @@ namespace Prokyon {
 
     int ProkyonCamera::GetBinning() const {
         LogMessage("getting binning");
-        return 1;
+        if (m_p_acq_parameters == nullptr) {
+            LogMessage("failed");
+            return 1;
+        }
+        else {
+            return m_p_acq_parameters->get_binning();
+        }
     }
 
-    int ProkyonCamera::SetBinning(int) {
+    int ProkyonCamera::SetBinning(int binSize) {
         LogMessage("setting binning");
-        return DEVICE_OK;
+        if (m_p_acq_parameters == nullptr) {
+            LogMessage("failed");
+            return DEVICE_NOT_CONNECTED;
+        }
+        else {
+            m_p_acq_parameters->set_binning(binSize);
+            return DEVICE_OK;
+        }
     }
 
     void ProkyonCamera::SetExposure(double exp_ms) {
@@ -460,6 +511,25 @@ namespace Prokyon {
     //    // TODO what is this?
     //    return DEVICE_UNSUPPORTED_COMMAND;
     //}
+
+    int ProkyonCamera::update_color_mode(MM::PropertyBase *p_prop, MM::ActionType type) {
+        LogMessage("updating color mode");
+        std::string s;
+        p_prop->Get(s);
+        LogMessage(s);
+        std::vector<std::string> test_allowed{"RGB 3 x 8 bpp", "Gray 8 bpp", "Gray 16 bpp"};
+        std::map<std::string, DijSDK_EImageFormat> forward{
+            {test_allowed[0], DijSDK_EImageFormatRGB888},
+            {test_allowed[1], DijSDK_EImageFormatGrey8},
+            {test_allowed[2], DijSDK_EImageFormatGrey16}
+        };
+        auto v = forward[s];
+        auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{v});
+        if (result) {
+            return DEVICE_NOT_CONNECTED; // ??
+        }
+        return DEVICE_OK;
+    }
 
     const char *ProkyonCamera::get_name() {
         return M_S_CAMERA_NAME.c_str();

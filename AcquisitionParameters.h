@@ -4,12 +4,11 @@
 #define PROKYON_ACQUISITION_PARAMETERS_H
 
 #include "CommonDef.h"
-#include "AcquisitionParametersInterface.h"
 
 namespace Prokyon {
     class Camera;
 
-    class AcquisitionParameters : public AcquisitionParametersInterface {
+    class AcquisitionParameters {
     public:
         AcquisitionParameters(Camera *p_camera);
 

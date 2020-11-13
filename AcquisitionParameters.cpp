@@ -19,8 +19,11 @@ namespace Prokyon {
     }
 
     void AcquisitionParameters::set_binning(int bin_size) {
-        // TODO this property is read only
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, 1, DijSDK_EParamQueryMax);
+        if (p.error) {
+            // TODO handle error
+            assert(false);
+        }
         auto max = p.value.at(0);
         if (bin_size < 1) {
             bin_size = 1;
