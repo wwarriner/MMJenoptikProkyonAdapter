@@ -43,4 +43,18 @@ namespace Prokyon {
         std::transform(signed_value.cbegin(), signed_value.cend(), unsigned_value.begin(), transform_function);
         return unsigned_value;
     }
+
+    StringProperty::StringProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
+        m_handle{handle},
+        m_id{id}
+    {}
+
+    std::string StringProperty::get() const {
+        auto p = get_string_parameter(m_handle, m_id, 1024u);
+        if (p.error) {
+            // todo handle
+            assert(false);
+        }
+        return p.value;
+    }
 }
