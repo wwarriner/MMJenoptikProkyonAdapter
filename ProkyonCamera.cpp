@@ -15,6 +15,7 @@
 #include <sstream>
 #include <memory>
 #include <map>
+#include <numeric>
 #include <algorithm> // debug
 
 // ModuleInterface.h
@@ -46,7 +47,8 @@ namespace Prokyon {
         m_p_camera{std::make_unique<Camera>()},
         m_p_image{nullptr},
         m_p_acq_parameters{nullptr},
-        m_p_roi{nullptr}
+        m_p_roi{nullptr},
+        m_mapped_int_scalar_properties{}
     {}
 
     int ProkyonCamera::Initialize() {
@@ -106,26 +108,51 @@ namespace Prokyon {
                     - assert for each limits is appropriate type
 
                 */
-                std::vector<std::string> test_allowed{"RGB 3 x 8 bpp", "Gray 8 bpp", "Gray 16 bpp"};
-                std::map<std::string, DijSDK_EImageFormat> forward{
-                    {test_allowed[0], DijSDK_EImageFormatRGB888},
-                    {test_allowed[1], DijSDK_EImageFormatGrey8},
-                    {test_allowed[2], DijSDK_EImageFormatGrey16}
+                NumericProperty<int> output_format_base(*m_p_camera, ParameterIdImageProcessingOutputFormat);
+                std::map<std::string, int> output_format_forward{
+                    {"RGB 3 x 8 bpp", DijSDK_EImageFormatRGB888},
+                    {"Gray 8 bpp", DijSDK_EImageFormatGrey8},
+                    {"Gray 16 bpp", DijSDK_EImageFormatGrey16}
                 };
-                std::string name{"Color Mode"};
-                this->CreatePropertyWithHandler(name.c_str(), test_allowed[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_color_mode, false);
-                this->SetAllowedValues(name.c_str(), test_allowed);
+                MappedNumericScalarProperty<int> output_format(output_format_base, output_format_forward);
+                std::string output_format_name{"Color Mode"};
+                this->CreatePropertyWithHandler(output_format_name.c_str(), output_format.range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_mapped_numeric_scalar_property, false);
+                this->SetAllowedValues(output_format_name.c_str(), output_format.range());
+                m_mapped_int_scalar_properties.emplace(output_format_name, output_format);
+
+                NumericProperty<int> image_mode_base(*m_p_camera, ParameterIdImageModeIndex);
+                NumericProperty<int> virtual_image_mode_base(*m_p_camera, ParameterIdImageModeVirtualIndex);
+                StringProperty virtual_image_mode_name(*m_p_camera, ParameterIdImageModeName);
+                std::map<std::string, int> image_mode_forward;
+                std::vector<int> range(image_mode_base.range()[1], 0);
+                std::iota(range.begin(), range.end(), 0);
+                for (const auto value : range) {
+                    virtual_image_mode_base.set(value, 0);
+                    auto key = virtual_image_mode_name.get();
+                    key.erase(std::remove(key.begin(), key.end(), ','), key.end());
+                    key.erase(std::remove(key.begin(), key.end(), '('), key.end());
+                    key.erase(std::remove(key.begin(), key.end(), ')'), key.end());
+                    std::stringstream ssp;
+                    ssp << "key: " << key << ", value: " << value;
+                    LogMessage(ssp.str());
+                    image_mode_forward.emplace(key, value);
+                }
+                MappedNumericScalarProperty<int> image_mode(image_mode_base, image_mode_forward);
+                for (const auto value : image_mode.range()) {
+                    LogMessage(value);
+                }
+                this->CreatePropertyWithHandler(M_S_IMAGE_MODE_NAME.c_str(), image_mode.range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_mapped_numeric_scalar_property, false);
+                this->SetAllowedValues(M_S_IMAGE_MODE_NAME.c_str(), image_mode.range());
+                m_mapped_int_scalar_properties.emplace(M_S_IMAGE_MODE_NAME, image_mode);
+
+                MappedNumericScalarProperty<int> virtual_image_mode(virtual_image_mode_base, image_mode_forward);
+                m_mapped_int_scalar_properties.emplace(M_S_VIRTUAL_IMAGE_MODE_NAME, virtual_image_mode);
                 // create integer properties with handlers
                 // one for format (bayer, gray, rgb, etc)
                 //  methods
                 //
                 // one for image mode (resolution, bpp, avging, shot count)
                 this->UpdateStatus();
-                auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{forward[test_allowed[0]]});
-                if (result) {
-                    return DEVICE_NOT_CONNECTED; // ??
-                }
-                return DEVICE_OK;
                 LogMessage("done");
 
                 out = DEVICE_OK;
@@ -453,82 +480,47 @@ namespace Prokyon {
         }
     }
 
-    //int ProkyonCamera::StartSequenceAcquisition(long numImages, double interval_ms, bool stopOnOverflow) {
-    //    // TODO
-    //    return DEVICE_OK;
-    //}
-
-    //int ProkyonCamera::PrepareSequenceAcqusition() {
-    //    // TODO
-    //    return DEVICE_OK;
-    //}
-
-    //bool ProkyonCamera::IsCapturing() {
-    //    // TODO
-    //    return false;
-    //}
-
     int ProkyonCamera::IsExposureSequenceable(bool &isSequencable) const {
         // TODO what is this?
         isSequencable = false;
         return DEVICE_OK;
     }
 
-    //int ProkyonCamera::GetExposureSequenceMaxLength(long &nrEvents) const {
-    //    // TODO what is this?
-    //    bool sequenceable = false;
-    //    IsExposureSequenceable(sequenceable);
-    //    if (!sequenceable) {
-    //        return DEVICE_UNSUPPORTED_COMMAND;
-    //    }
-    //    else {
-    //        nrEvents = 1l;
-    //        return DEVICE_OK;
-    //    }
-    //}
+    int ProkyonCamera::update_mapped_numeric_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type) {
+        auto name = p_prop->GetName();
+        std::stringstream ss;
+        ss << "updating property " << name;
+        LogMessage(ss.str());
 
-    //int ProkyonCamera::StartExposureSequence() {
-    //    // TODO what is this?
-    //    return DEVICE_UNSUPPORTED_COMMAND;
-    //}
+        if (name == M_S_IMAGE_MODE_NAME) {
+            update_image_mode(p_prop, type);
+        }
+        else {
+            std::string s;
+            p_prop->Get(s);
+            LogMessage(s);
 
-    //int ProkyonCamera::StopExposureSequence() {
-    //    // TODO what is this?
-    //    return DEVICE_UNSUPPORTED_COMMAND;
-    //}
+            assert(m_mapped_int_scalar_properties.count(name));
+            auto p = m_mapped_int_scalar_properties.at(name);
+            p.set(s);
+        }
 
-    //int ProkyonCamera::ClearExposureSequence() {
-    //    // TODO what is this?
-    //    return DEVICE_UNSUPPORTED_COMMAND;
-    //}
+        LogMessage("done");
+        return DEVICE_OK;
+    }
 
-    //int ProkyonCamera::AddToExposureSequence(double exposureTime_ms) {
-    //    // TODO what is this ?
-    //    return DEVICE_UNSUPPORTED_COMMAND;
-    //}
-
-    //int ProkyonCamera::SendExposureSequence() const {
-    //    // TODO what is this?
-    //    return DEVICE_UNSUPPORTED_COMMAND;
-    //}
-
-    int ProkyonCamera::update_color_mode(MM::PropertyBase *p_prop, MM::ActionType type) {
-        LogMessage("updating color mode");
+    int ProkyonCamera::update_image_mode(MM::PropertyBase *p_prop, MM::ActionType type) {
         std::string s;
         p_prop->Get(s);
         LogMessage(s);
-        std::vector<std::string> test_allowed{"RGB 3 x 8 bpp", "Gray 8 bpp", "Gray 16 bpp"};
-        std::map<std::string, DijSDK_EImageFormat> forward{
-            {test_allowed[0], DijSDK_EImageFormatRGB888},
-            {test_allowed[1], DijSDK_EImageFormatGrey8},
-            {test_allowed[2], DijSDK_EImageFormatGrey16}
-        };
-        auto v = forward[s];
-        auto result = set_numeric_parameter<int>(*(m_p_camera.get()), ParameterIdImageProcessingOutputFormat, std::vector<int>{v});
-        if (result) {
-            return DEVICE_NOT_CONNECTED; // ??
-        }
-        return DEVICE_OK;
+
+        assert(m_mapped_int_scalar_properties.count(M_S_IMAGE_MODE_NAME));
+        assert(m_mapped_int_scalar_properties.count(M_S_VIRTUAL_IMAGE_MODE_NAME));
+
+        auto p = m_mapped_int_scalar_properties.at(M_S_IMAGE_MODE_NAME);
+        p.set(s);
+        p = m_mapped_int_scalar_properties.at(M_S_VIRTUAL_IMAGE_MODE_NAME);
+        p.set(s);
     }
 
     const char *ProkyonCamera::get_name() {
@@ -557,6 +549,8 @@ namespace Prokyon {
     const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774BF12B70452BF23"};
     const std::string ProkyonCamera::M_S_CAMERA_NAME{"Prokyon"};
     const std::string ProkyonCamera::M_S_CAMERA_DESCRIPTION{"Jenoptik Prokyon"};
+    const std::string ProkyonCamera::M_S_IMAGE_MODE_NAME{"Image Mode"};
+    const std::string ProkyonCamera::M_S_VIRTUAL_IMAGE_MODE_NAME{"Virtual Image Mode"};
 
     // debug
 

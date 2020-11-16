@@ -55,7 +55,9 @@ namespace Prokyon {
         int IsExposureSequenceable(bool &isSequenceable) const;
 
     public:
-        int update_color_mode(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_mapped_numeric_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        // special case for image mode index and virtual image mode index
+        int update_image_mode(MM::PropertyBase *p_prop, MM::ActionType type);
 
     public:
         static const char *get_name(); // done
@@ -69,9 +71,13 @@ namespace Prokyon {
         std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
         std::unique_ptr<RegionOfInterest> m_p_roi;
 
+        std::map<std::string, MappedNumericScalarProperty<int>> m_mapped_int_scalar_properties;
+
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;
         static const std::string M_S_CAMERA_DESCRIPTION;
+        static const std::string M_S_IMAGE_MODE_NAME;
+        static const std::string M_S_VIRTUAL_IMAGE_MODE_NAME;
         static const std::vector<unsigned char> M_S_TEST_IMAGE;
 
         // debug
