@@ -7,10 +7,10 @@
 
 namespace Prokyon {
     StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, unsigned int length) {
-        std::vector<char> value;
-        value.reserve(length);
+        std::vector<char> value(length, char{});
         auto result = DijSDK_GetStringParameter(handle, param_id, value.data(), length);
-        return {std::string(value.cbegin(), value.cend()), result};
+        auto it = std::find(value.cbegin(), value.cend(), '\0');
+        return {std::string(value.cbegin(), it), result};
     }
 
     template<>
