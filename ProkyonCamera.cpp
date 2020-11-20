@@ -396,16 +396,9 @@ namespace Prokyon {
         }
     }
 
-    int ProkyonCamera::SetBinning(int binSize) {
-        LogMessage("setting binning");
-        if (m_p_acq_parameters == nullptr) {
-            LogMessage("failed");
-            return DEVICE_NOT_CONNECTED;
-        }
-        else {
-            m_p_acq_parameters->set_binning(binSize);
-            return DEVICE_OK;
-        }
+    int ProkyonCamera::SetBinning(int) {
+        LogMessage("binning may not be set directly, choose via imaging mode");
+        return DEVICE_OK;
     }
 
     void ProkyonCamera::SetExposure(double exp_ms) {

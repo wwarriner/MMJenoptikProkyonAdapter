@@ -12,11 +12,10 @@ namespace Prokyon {
     public:
         AcquisitionParameters(Camera *p_camera);
 
-        virtual int get_binning() const;
-        virtual void set_binning(int bin_size);
+        int get_binning() const;
 
-        virtual double get_exposure_ms() const;
-        virtual void set_exposure_ms(double exposure_ms);
+        double get_exposure_ms() const;
+        void set_exposure_ms(double exposure_ms);
 
     private:
         Camera *m_p_camera;

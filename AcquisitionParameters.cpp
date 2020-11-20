@@ -6,6 +6,8 @@
 #include <cassert>
 #include <cmath>
 
+// TODO refactor this class into NumericProperty<T>
+
 namespace Prokyon {
     AcquisitionParameters::AcquisitionParameters(Camera *p_camera) : m_p_camera{p_camera} {}
 
@@ -16,26 +18,6 @@ namespace Prokyon {
             assert(false);
         }
         return p.value.at(0);
-    }
-
-    void AcquisitionParameters::set_binning(int bin_size) {
-        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, 1, DijSDK_EParamQueryMax);
-        if (p.error) {
-            // TODO handle error
-            assert(false);
-        }
-        auto max = p.value.at(0);
-        if (bin_size < 1) {
-            bin_size = 1;
-        }
-        else if (max < bin_size) {
-            bin_size = max;
-        }
-        auto result = set_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, std::vector<int>{bin_size, bin_size});
-        if (result) {
-            // TODO handle
-            assert(false);
-        }
     }
 
     double AcquisitionParameters::get_exposure_ms() const {
