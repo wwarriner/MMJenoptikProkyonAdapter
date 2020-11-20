@@ -5,6 +5,8 @@
 
 #include "CommonDef.h"
 
+#include <string>
+
 namespace Prokyon {
     class Camera {
     public:

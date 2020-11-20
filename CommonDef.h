@@ -4,6 +4,7 @@
 #define PROKYON_COMMON_DEF_H
 
 #include <array>
+#include <string>
 
 // external forward declarations
 enum DijSDK_EImageFormat : int;
