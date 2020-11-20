@@ -55,9 +55,27 @@ namespace Prokyon {
         int IsExposureSequenceable(bool &isSequenceable) const;
 
     public:
-        int update_mapped_numeric_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_vector_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
         // special case for image mode index and virtual image mode index
         int update_image_mode(MM::PropertyBase *p_prop, MM::ActionType type);
+
+        int get_integer_scalar_value(MM::PropertyBase *p_prop) const;
+        void set_integer_scalar_value(int v, MM::PropertyBase *p_prop);
+
+        std::vector<int> get_integer_vector_value(MM::PropertyBase *p_prop, bool &success) const;
+        void set_integer_vector_value(std::vector<int> values, MM::PropertyBase *p_prop);
+
+        double get_double_scalar_value(MM::PropertyBase *p_prop) const;
+        void set_double_scalar_value(double v, MM::PropertyBase *p_prop);
+
+        std::vector<double> get_double_vector_value(MM::PropertyBase *p_prop, bool &success) const;
+        void set_double_vector_value(std::vector<double> v, MM::PropertyBase *p_prop);
+
+        NumericProperty &get_property(MM::PropertyBase *p_prop);
+        const NumericProperty &get_property(MM::PropertyBase *p_prop) const;
+        std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
 
     public:
         static const char *get_name(); // done
@@ -71,7 +89,8 @@ namespace Prokyon {
         std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
         std::unique_ptr<RegionOfInterest> m_p_roi;
 
-        std::map<std::string, MappedNumericScalarProperty<int>> m_mapped_int_scalar_properties;
+        std::map<std::string, NumericProperty> m_properties;
+        std::map<std::string, MappedScalarIntProperty> m_mapped_scalar_properties;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;
