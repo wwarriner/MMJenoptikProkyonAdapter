@@ -100,15 +100,15 @@ namespace Prokyon {
                     key.erase(std::remove(key.begin(), key.end(), ')'), key.end());
                     image_mode_forward.emplace(key, value);
                 }
-                MappedScalarIntProperty image_mode(image_mode_base, image_mode_forward, true);
-                for (const auto value : image_mode.range()) {
+                auto p_image_mode = std::make_unique<MappedScalarIntProperty>(image_mode_base, image_mode_forward, true);
+                for (const auto value : p_image_mode->range()) {
                     LogMessage(value);
                 }
-                this->CreatePropertyWithHandler(M_S_IMAGE_MODE_NAME.c_str(), image_mode.range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_mapped_scalar_property, false);
-                this->SetAllowedValues(M_S_IMAGE_MODE_NAME.c_str(), image_mode.range());
-                m_mapped_scalar_properties.emplace(M_S_IMAGE_MODE_NAME, image_mode);
-                MappedScalarIntProperty virtual_image_mode(virtual_image_mode_base, image_mode_forward, true);
-                m_mapped_scalar_properties.emplace(M_S_VIRTUAL_IMAGE_MODE_NAME, virtual_image_mode);
+                this->CreatePropertyWithHandler(M_S_IMAGE_MODE_NAME.c_str(), p_image_mode->range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_mapped_scalar_property, false);
+                this->SetAllowedValues(M_S_IMAGE_MODE_NAME.c_str(), p_image_mode->range());
+                m_mapped_scalar_properties[M_S_IMAGE_MODE_NAME] = std::move(p_image_mode);
+                auto p_virtual_image_mode = std::make_unique<MappedScalarIntProperty>(virtual_image_mode_base, image_mode_forward, true);
+                m_mapped_scalar_properties[M_S_VIRTUAL_IMAGE_MODE_NAME] = std::move(p_virtual_image_mode);
 
                 LogMessage("ParameterIdImageProcessingOutputFormat | rw | discrete");
                 NumericProperty output_format_base(*m_p_camera, ParameterIdImageProcessingOutputFormat);
@@ -117,59 +117,59 @@ namespace Prokyon {
                     {"Gray 8 bpp", DijSDK_EImageFormatGrey8},
                     {"Gray 16 bpp", DijSDK_EImageFormatGrey16}
                 };
-                MappedScalarIntProperty output_format(output_format_base, output_format_forward);
+                auto p_output_format = std::make_unique<MappedScalarIntProperty>(output_format_base, output_format_forward);
                 std::string output_format_name{"Color Mode"};
-                this->CreatePropertyWithHandler(output_format_name.c_str(), output_format.range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_mapped_scalar_property, false);
-                this->SetAllowedValues(output_format_name.c_str(), output_format.range());
-                m_mapped_scalar_properties.emplace(output_format_name, output_format);
+                this->CreatePropertyWithHandler(output_format_name.c_str(), p_output_format->range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_mapped_scalar_property, false);
+                this->SetAllowedValues(output_format_name.c_str(), p_output_format->range());
+                m_mapped_scalar_properties[output_format_name] = std::move(p_output_format);
 
                 LogMessage("ParameterIdImageCaptureGain | rw | scalar double");
-                NumericProperty capture_gain(*m_p_camera, ParameterIdImageCaptureGain);
+                auto p_capture_gain = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageCaptureGain);
                 std::string capture_gain_name{"Capture Gain Target"};
-                this->CreateFloatProperty(capture_gain_name.c_str(), capture_gain.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(capture_gain_name, capture_gain);
+                this->CreateFloatProperty(capture_gain_name.c_str(), p_capture_gain->get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[capture_gain_name] = std::move(p_capture_gain);
 
                 LogMessage("ParameterIdImageProcessingGammaCorrection | rw | scalar double");
-                NumericProperty processing_gamma(*m_p_camera, ParameterIdImageProcessingGammaCorrection);
+                auto p_processing_gamma = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageProcessingGammaCorrection);
                 std::string processing_gamma_name{"Hardware Gamma"};
-                this->CreateFloatProperty(processing_gamma_name.c_str(), processing_gamma.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_gamma_name, processing_gamma);
+                this->CreateFloatProperty(processing_gamma_name.c_str(), p_processing_gamma->get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_gamma_name] = std::move(p_processing_gamma);
 
                 LogMessage("ParameterIdImageProcessingContrast | rw | scalar double");
-                NumericProperty processing_contrast(*m_p_camera, ParameterIdImageProcessingContrast);
+                auto p_processing_contrast = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageProcessingContrast);
                 std::string processing_contrast_name{"Hardware Contrast"};
-                this->CreateFloatProperty(processing_contrast_name.c_str(), processing_contrast.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_contrast_name, processing_contrast);
+                this->CreateFloatProperty(processing_contrast_name.c_str(), p_processing_contrast->get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_contrast_name] = std::move(p_processing_contrast);
 
                 LogMessage("ParameterIdImageProcessingSharpness | rw | scalar double");
-                NumericProperty processing_sharpness(*m_p_camera, ParameterIdImageProcessingSharpness);
+                auto p_processing_sharpness = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageProcessingSharpness);
                 std::string processing_sharpness_name{"Hardware Sharpness"};
-                this->CreateFloatProperty(processing_sharpness_name.c_str(), processing_sharpness.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_sharpness_name, processing_sharpness);
+                this->CreateFloatProperty(processing_sharpness_name.c_str(), p_processing_sharpness->get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_sharpness_name] = std::move(p_processing_sharpness);
 
                 LogMessage("ParameterIdImageProcessingHighDynamicRange | rw | scalar bool");
-                NumericProperty processing_hdr_enabled(*m_p_camera, ParameterIdImageProcessingHighDynamicRange);
+                auto p_processing_hdr_enabled = std::make_unique<BoolProperty>(*m_p_camera, ParameterIdImageProcessingHighDynamicRange);
                 std::string processing_hdr_enabled_name{"Hardware HDR Enabled"};
-                this->CreateFloatProperty(processing_hdr_enabled_name.c_str(), processing_hdr_enabled.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_hdr_enabled_name, processing_hdr_enabled);
+                this->CreateIntegerProperty(processing_hdr_enabled_name.c_str(), p_processing_hdr_enabled->get_int(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_hdr_enabled_name] = std::move(p_processing_hdr_enabled);
 
                 LogMessage("ParameterIdImageProcessingHdrWeight | rw | scalar double");
-                NumericProperty processing_hdr_weight(*m_p_camera, ParameterIdImageProcessingHdrWeight);
+                auto p_processing_hdr_weight = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageProcessingHdrWeight);
                 std::string processing_hdr_weight_name{"Hardware HDR Weight"};
-                this->CreateFloatProperty(processing_hdr_weight_name.c_str(), processing_hdr_weight.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_hdr_weight_name, processing_hdr_weight);
+                this->CreateFloatProperty(processing_hdr_weight_name.c_str(), p_processing_hdr_weight->get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_hdr_weight_name] = std::move(p_processing_hdr_weight);
 
                 LogMessage("ParameterIdImageProcessingHdrColorGamma | rw | scalar double");
-                NumericProperty processing_hdr_color_gamma(*m_p_camera, ParameterIdImageProcessingHdrColorGamma);
+                auto p_processing_hdr_color_gamma = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageProcessingHdrColorGamma);
                 std::string processing_hdr_color_gamma_name{"Hardware HDR Gamma"};
-                this->CreateFloatProperty(processing_hdr_color_gamma_name.c_str(), processing_hdr_color_gamma.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_hdr_color_gamma_name, processing_hdr_color_gamma);
+                this->CreateFloatProperty(processing_hdr_color_gamma_name.c_str(), p_processing_hdr_color_gamma->get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_hdr_color_gamma_name] = std::move(p_processing_hdr_color_gamma);
 
-                LogMessage("ParameterIdImageProcessingHdrSmoothFieldSize | rw | scalar double");
-                NumericProperty processing_hdr_smooth_field_size(*m_p_camera, ParameterIdImageProcessingHdrSmoothFieldSize);
+                LogMessage("ParameterIdImageProcessingHdrSmoothFieldSize | rw | scalar int");
+                auto p_processing_hdr_smooth_field_size = std::make_unique<NumericProperty>(*m_p_camera, ParameterIdImageProcessingHdrSmoothFieldSize);
                 std::string processing_hdr_smooth_field_size_gamma_name{"Hardware HDR Smooth Field Size"};
-                this->CreateFloatProperty(processing_hdr_smooth_field_size_gamma_name.c_str(), processing_hdr_smooth_field_size.get_double(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
-                m_scalar_properties.emplace(processing_hdr_smooth_field_size_gamma_name, processing_hdr_smooth_field_size);
+                this->CreateIntegerProperty(processing_hdr_smooth_field_size_gamma_name.c_str(), p_processing_hdr_smooth_field_size->get_int(0), false, new CPropertyAction(this, &ProkyonCamera::update_scalar_property), false);
+                m_properties[processing_hdr_smooth_field_size_gamma_name] = std::move(p_processing_hdr_smooth_field_size);
 
                 // ParameterIdImageProcessingColorBalance | 3 vector double
                 // ParameterIdImageProcessingColorBalKeepBrightness | scalar bool
@@ -526,21 +526,26 @@ namespace Prokyon {
 
     int ProkyonCamera::update_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type) {
         auto p = get_property(p_prop);
+        LogMessage("step1");
         switch (p_prop->GetType()) {
             case (MM::PropertyType::Integer):
             {
                 auto v = get_integer_scalar_value(p_prop);
-                p.normalize_int(v);
+                LogMessage("step2");
+                p->normalize_int(v);
+                LogMessage("step3");
                 set_integer_scalar_value(v, p_prop);
-                p.set(v);
+                LogMessage("step4");
+                p->set(v);
+                LogMessage("step5");
                 break;
             }
             case (MM::PropertyType::Float):
             {
                 auto v = get_double_scalar_value(p_prop);
-                p.normalize_double(v);
+                p->normalize_double(v);
                 set_double_scalar_value(v, p_prop);
-                p.set(v);
+                p->set(v);
                 break;
             }
             default:
@@ -557,26 +562,26 @@ namespace Prokyon {
             {
                 bool success = false;
                 auto v = get_integer_vector_value(p_prop, success);
-                if (!success || v.size() != p.dimension()) {
+                if (!success || v.size() != p->dimension()) {
                     set_integer_vector_value(v, p_prop);
                     return DEVICE_OK;
                 }
-                p.normalize_int(v);
+                p->normalize_int(v);
                 set_integer_vector_value(v, p_prop);
-                p.set(v);
+                p->set(v);
                 break;
             }
             case(MM::PropertyType::Float):
             {
                 bool success = false;
                 auto v = get_double_vector_value(p_prop, success);
-                if (!success || v.size() != p.dimension()) {
+                if (!success || v.size() != p->dimension()) {
                     set_double_vector_value(v, p_prop);
                     return DEVICE_OK;
                 }
-                p.normalize_double(v);
+                p->normalize_double(v);
                 set_double_vector_value(v, p_prop);
-                p.set(v);
+                p->set(v);
                 break;
             }
             default:
@@ -663,11 +668,47 @@ namespace Prokyon {
         p_prop->Set(v);
     }
 
-    int ProkyonCamera::update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type) {
-        auto name = p_prop->GetName();
+    std::vector<double> ProkyonCamera::get_double_vector_value(MM::PropertyBase *p_prop, bool &success) const {
+        std::string v;
+        p_prop->Get(v);
         std::stringstream ss;
-        ss << "updating property " << name;
+        ss << v;
         LogMessage(ss.str());
+
+        // extract values
+        std::vector<int> values;
+        std::stringstream words(v);
+        constexpr char token = ',';
+        std::string word;
+        int index = 0;
+        while (std::getline(words, word, token)) {
+            int current;
+            try {
+                current = std::stod(word);
+            }
+            catch (std::invalid_argument) {
+                success = false;
+            }
+            values.push_back(current);
+        }
+        success = true;
+    }
+
+    void ProkyonCamera::set_double_vector_value(std::vector<double> values, MM::PropertyBase *p_prop) {
+        // to string
+        std::stringstream ss;
+        ss << std::setprecision(4);
+        for (auto i = 0; i < values.size(); ++i) {
+            if (0 < i) {
+                ss << ", ";
+            }
+            ss << values[i];
+        }
+        p_prop->Set(ss.str().c_str());
+    }
+
+    int ProkyonCamera::update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type) {
+        auto name = get_mm_property_name(p_prop);
 
         if (name == M_S_IMAGE_MODE_NAME) {
             update_image_mode(p_prop, type);
@@ -678,8 +719,8 @@ namespace Prokyon {
             LogMessage(v);
 
             assert(m_mapped_scalar_properties.count(name));
-            auto p = m_mapped_scalar_properties.at(name);
-            p.set(v);
+            auto p = m_mapped_scalar_properties.at(name).get();
+            p->set(v);
         }
 
         LogMessage("done");
@@ -694,25 +735,25 @@ namespace Prokyon {
         assert(m_mapped_scalar_properties.count(M_S_IMAGE_MODE_NAME));
         assert(m_mapped_scalar_properties.count(M_S_VIRTUAL_IMAGE_MODE_NAME));
 
-        auto p = m_mapped_scalar_properties.at(M_S_IMAGE_MODE_NAME);
-        p.set(s);
-        p = m_mapped_scalar_properties.at(M_S_VIRTUAL_IMAGE_MODE_NAME);
-        p.set(s);
+        auto p = m_mapped_scalar_properties.at(M_S_IMAGE_MODE_NAME).get();
+        p->set(s);
+        p = m_mapped_scalar_properties.at(M_S_VIRTUAL_IMAGE_MODE_NAME).get();
+        p->set(s);
 
         LogMessage("done");
         return DEVICE_OK;
     }
 
-    NumericProperty &ProkyonCamera::get_property(MM::PropertyBase *p_prop) {
+    NumericProperty *ProkyonCamera::get_property(MM::PropertyBase *p_prop) {
         auto name = get_mm_property_name(p_prop);
         assert(m_properties.count(name));
-        return m_properties.at(name);
+        return m_properties.at(name).get();
     }
 
-    const NumericProperty &ProkyonCamera::get_property(MM::PropertyBase *p_prop) const {
+    const NumericProperty *ProkyonCamera::get_property(MM::PropertyBase *p_prop) const {
         auto name = get_mm_property_name(p_prop);
         assert(m_properties.count(name));
-        return m_properties.at(name);
+        return m_properties.at(name).get();
     }
 
     std::string ProkyonCamera::get_mm_property_name(MM::PropertyBase *p_prop) const {

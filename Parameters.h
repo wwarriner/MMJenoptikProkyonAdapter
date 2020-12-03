@@ -40,35 +40,42 @@ namespace Prokyon {
         bool is_discrete() const;
 
         std::vector<int> range_discrete() const;
-        std::vector<int> range_int() const;
+        virtual std::vector<int> range_int() const;
         std::vector<double> range_double() const;
 
-        void normalize_int(int &v) const;
+        virtual void normalize_int(int &v) const;
         void normalize_int(std::vector<int> &v) const;
 
         void normalize_double(double &v) const;
         void normalize_double(std::vector<double> &v) const;
 
         bool allowed_discrete(int value) const;
-        bool allowed_int(int value) const;
+        virtual bool allowed_int(int value) const;
         bool allowed_double(double value) const;
 
         std::vector<int> get_int() const;
         std::vector<double> get_double() const;
 
-        int get_int(unsigned index) const;
+        virtual int get_int(unsigned index) const;
         double get_double(unsigned index) const;
 
         void set(const std::vector<int> &value);
         void set(const std::vector<double> &value);
 
-        void set(const int &value, unsigned index = 0);
+        virtual void set(const int &value, unsigned index = 0);
         void set(const double &value, unsigned index = 0);
 
         std::string vector_to_string() const;
         std::string specification_to_string() const;
 
-    private:
+        enum class Type {
+            UnspecifiedType = 0,
+            IntType = 1,
+            DoubleType = 2
+        };
+        Type type() const;
+
+    protected:
         template<typename T>
         std::vector<T> range() const;
         template<typename T>
@@ -89,13 +96,6 @@ namespace Prokyon {
         std::string value_to_string() const;
         template<typename T>
         std::string range_to_string() const;
-
-        enum class Type {
-            UnspecifiedType = 0,
-            IntType = 1,
-            DoubleType = 2
-        };
-        Type type() const;
 
         DijSDK_Handle m_handle;
         DijSDK_EParamId m_id;
@@ -119,6 +119,19 @@ namespace Prokyon {
         std::map<int, std::string> m_reverse;
         std::vector<std::string> m_range;
         bool m_pseudo_mapped;
+    };
+
+    // TODO make like MappedScalarIntProperty
+    // use drop-down "on/off"
+    class BoolProperty : public NumericProperty {
+    public:
+        BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id);
+
+        virtual std::vector<int> range_int() const;
+        virtual void normalize_int(int &v) const;
+        virtual bool allowed_int(int value) const;
+        virtual void set(const int &value, unsigned index = 0);
+        virtual int get_int(unsigned index) const;
     };
 
     template<typename T>

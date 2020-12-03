@@ -73,8 +73,8 @@ namespace Prokyon {
         std::vector<double> get_double_vector_value(MM::PropertyBase *p_prop, bool &success) const;
         void set_double_vector_value(std::vector<double> v, MM::PropertyBase *p_prop);
 
-        NumericProperty &get_property(MM::PropertyBase *p_prop);
-        const NumericProperty &get_property(MM::PropertyBase *p_prop) const;
+        NumericProperty *get_property(MM::PropertyBase *p_prop);
+        const NumericProperty *get_property(MM::PropertyBase *p_prop) const;
         std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
 
     public:
@@ -89,8 +89,8 @@ namespace Prokyon {
         std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
         std::unique_ptr<RegionOfInterest> m_p_roi;
 
-        std::map<std::string, NumericProperty> m_properties;
-        std::map<std::string, MappedScalarIntProperty> m_mapped_scalar_properties;
+        std::map<std::string, std::unique_ptr<NumericProperty>> m_properties;
+        std::map<std::string, std::unique_ptr<MappedScalarIntProperty>> m_mapped_scalar_properties;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;

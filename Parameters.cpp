@@ -216,6 +216,38 @@ namespace Prokyon {
         return out;
     }
 
+    BoolProperty::BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
+        NumericProperty(handle, id) {}
+
+    std::vector<int> BoolProperty::range_int() const {
+        assert(type() == NumericProperty::Type::IntType);
+        return {0, 1};
+    }
+
+    void BoolProperty::normalize_int(int &v) const {
+        auto r = range_int();
+        if (v < r[0]) {
+            v = r[0];
+        }
+        else if (r[1] < v) {
+            v = r[1];
+        }
+    }
+
+    bool BoolProperty::allowed_int(int value) const {
+        return value == 0 || value == 1;
+    }
+
+    void BoolProperty::set(const int &value, unsigned index) {
+        assert(writeable());
+        assert(index == 0);
+        NumericProperty::set<int>(std::vector<int>{value});
+    }
+
+    int BoolProperty::get_int(unsigned index) const {
+        return NumericProperty::get<int>(index);
+    }
+
     MappedScalarIntProperty::MappedScalarIntProperty(NumericProperty prop, std::map<std::string, int> forward, bool pseudo_mapped) :
         m_property{prop},
         m_forward{forward},
