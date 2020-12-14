@@ -30,6 +30,14 @@ namespace Prokyon {
         return p.value;
     }
 
+    std::string StringProperty::short_specification_to_string() const {
+        return "scalar | string | " + writeable_to_string(); // hardware API dictates scalar strings
+    }
+
+    std::string StringProperty::writeable_to_string() const {
+        return writeable() ? "rw" : "ro";
+    }
+
     NumericProperty::NumericProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
         m_handle{handle},
         m_id{id}
@@ -94,16 +102,6 @@ namespace Prokyon {
         return range<double>();
     }
 
-    void NumericProperty::normalize_int(int &v) const {
-        assert(type() == Type::IntType);
-        normalize<int>(v);
-    }
-
-    void NumericProperty::normalize_double(double &v) const {
-        assert(type() == Type::DoubleType);
-        normalize<double>(v);
-    }
-
     void NumericProperty::normalize_int(std::vector<int> &v) const {
         assert(type() == Type::IntType);
         normalize<int>(v);
@@ -140,16 +138,6 @@ namespace Prokyon {
         return get<double>();
     }
 
-    int NumericProperty::get_int(unsigned index) const {
-        assert(type() == Type::IntType);
-        return get<int>(index);
-    }
-
-    double NumericProperty::get_double(unsigned index) const {
-        assert(type() == Type::DoubleType);
-        return get<double>(index);
-    }
-
     void NumericProperty::set(const std::vector<int> &value) {
         assert(type() == Type::IntType);
         set<int>(value);
@@ -158,16 +146,6 @@ namespace Prokyon {
     void NumericProperty::set(const std::vector<double> &value) {
         assert(type() == Type::DoubleType);
         set<double>(value);
-    }
-
-    void NumericProperty::set(const int &value, unsigned index) {
-        assert(type() == Type::IntType);
-        set<int>(value, index);
-    }
-
-    void NumericProperty::set(const double &value, unsigned index) {
-        assert(type() == Type::DoubleType);
-        set<double>(value, index);
     }
 
     std::string NumericProperty::vector_to_string() const {
@@ -182,6 +160,14 @@ namespace Prokyon {
             default:
                 assert(false);
         }
+        return ss.str();
+    }
+
+    std::string NumericProperty::short_specification_to_string() const {
+        std::stringstream ss;
+        ss << dimension_to_string() << " | ";
+        ss << type_to_string() << " | ";
+        ss << writeable_to_string();
         return ss.str();
     }
 
@@ -226,6 +212,42 @@ namespace Prokyon {
         return out;
     }
 
+    std::string NumericProperty::dimension_to_string() const {
+        std::string out;
+        auto d = dimension();
+        if (d == 1) {
+            out = "scalar";
+        }
+        else if (1 < d) {
+            std::stringstream ss;
+            ss << d << "-vector";
+            out = ss.str();
+        }
+        else {
+            assert(false);
+        }
+        return out;
+    }
+
+    std::string NumericProperty::type_to_string() const {
+        std::string out;
+        switch (type()) {
+            case Type::DoubleType:
+                out = "double";
+                break;
+            case Type::IntType:
+                out = "int";
+                break;
+            default:
+                assert(false);
+        }
+        return out;
+    }
+
+    std::string NumericProperty::writeable_to_string() const {
+        return writeable() ? "rw" : "ro";
+    }
+
     BoolProperty::BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
         NumericProperty(handle, id) {}
 
@@ -234,13 +256,15 @@ namespace Prokyon {
         return {0, 1};
     }
 
-    void BoolProperty::normalize_int(int &v) const {
+    void BoolProperty::normalize_int(std::vector<int> &value) const {
         auto r = range_int();
-        if (v < r[0]) {
-            v = r[0];
-        }
-        else if (r[1] < v) {
-            v = r[1];
+        for (auto &v : value) {
+            if (v < r[0]) {
+                v = r[0];
+            }
+            else if (r[1] < v) {
+                v = r[1];
+            }
         }
     }
 
@@ -248,14 +272,23 @@ namespace Prokyon {
         return value == 0 || value == 1;
     }
 
-    void BoolProperty::set(const int &value, unsigned index) {
+    void BoolProperty::set(const std::vector<int> &value) {
         assert(writeable());
-        assert(index == 0);
-        NumericProperty::set<int>(std::vector<int>{value});
+        NumericProperty::set<int>(value);
     }
 
-    int BoolProperty::get_int(unsigned index) const {
-        return NumericProperty::get<int>(index);
+    std::vector<int> BoolProperty::get_int() const {
+        return NumericProperty::get<int>();
+    }
+
+    std::string BoolProperty::vector_to_string() const {
+        std::stringstream ss;
+        ss << get_int()[0];
+        return ss.str();
+    }
+
+    std::string BoolProperty::type_to_string() const {
+        return "bool";
     }
 
     MappedScalarIntProperty::MappedScalarIntProperty(NumericProperty prop, std::map<std::string, int> forward, bool pseudo_mapped) :
@@ -300,14 +333,26 @@ namespace Prokyon {
     }
 
     std::string MappedScalarIntProperty::get() const {
-        auto v = m_property.get_int(0);
+        auto v = m_property.get_int()[0];
         return m_reverse.at(v);
     }
 
     void MappedScalarIntProperty::set(const std::string &value) {
         auto v = m_forward.at(value);
-        m_property.set(v, 0);
+        auto old = m_property.get_int();
+        old[0] = v;
+        m_property.set(old);
     }
+
+    std::string MappedScalarIntProperty::short_specification_to_string() const {
+        return "scalar | discrete | " + writeable_to_string(); // hardware API dictates scalar strings
+    }
+
+    std::string MappedScalarIntProperty::writeable_to_string() const {
+        return writeable() ? "rw" : "ro";
+    }
+
+    // free functions
 
     StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, unsigned int length) {
         std::vector<char> value(length, char{});

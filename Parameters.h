@@ -26,6 +26,9 @@ namespace Prokyon {
         bool writeable() const;
         std::string get() const;
 
+        std::string short_specification_to_string() const;
+        std::string writeable_to_string() const;
+
     private:
         DijSDK_Handle m_handle;
         DijSDK_EParamId m_id;
@@ -36,6 +39,7 @@ namespace Prokyon {
         NumericProperty(DijSDK_Handle handle, DijSDK_EParamId id);
 
         unsigned dimension() const;
+
         bool writeable() const;
 
         bool is_discrete() const;
@@ -44,29 +48,21 @@ namespace Prokyon {
         virtual std::vector<int> range_int() const;
         std::vector<double> range_double() const;
 
-        virtual void normalize_int(int &v) const;
-        void normalize_int(std::vector<int> &v) const;
-
-        void normalize_double(double &v) const;
+        virtual void normalize_int(std::vector<int> &v) const;
         void normalize_double(std::vector<double> &v) const;
 
         bool allowed_discrete(int value) const;
         virtual bool allowed_int(int value) const;
         bool allowed_double(double value) const;
 
-        std::vector<int> get_int() const;
+        virtual std::vector<int> get_int() const;
         std::vector<double> get_double() const;
 
-        virtual int get_int(unsigned index) const;
-        double get_double(unsigned index) const;
-
-        void set(const std::vector<int> &value);
+        virtual void set(const std::vector<int> &value);
         void set(const std::vector<double> &value);
 
-        virtual void set(const int &value, unsigned index = 0);
-        void set(const double &value, unsigned index = 0);
-
-        std::string vector_to_string() const;
+        virtual std::string vector_to_string() const;
+        std::string short_specification_to_string() const;
         std::string specification_to_string() const;
 
         enum class Type {
@@ -75,6 +71,10 @@ namespace Prokyon {
             DoubleType = 2
         };
         Type type() const;
+
+        std::string dimension_to_string() const;
+        virtual std::string type_to_string() const;
+        std::string writeable_to_string() const;
 
         static const char DELIMITER = '|';
 
@@ -116,6 +116,9 @@ namespace Prokyon {
         std::string get() const;
         void set(const std::string &value);
 
+        std::string short_specification_to_string() const;
+        std::string writeable_to_string() const;
+
     private:
         NumericProperty m_property;
         std::map<std::string, int> m_forward;
@@ -131,10 +134,14 @@ namespace Prokyon {
         BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id);
 
         virtual std::vector<int> range_int() const;
-        virtual void normalize_int(int &v) const;
+        virtual void normalize_int(std::vector<int> &v) const;
         virtual bool allowed_int(int value) const;
-        virtual void set(const int &value, unsigned index = 0);
-        virtual int get_int(unsigned index) const;
+        virtual void set(const std::vector<int> &value);
+        virtual std::vector<int> get_int() const;
+
+        virtual std::string vector_to_string() const;
+
+        virtual std::string type_to_string() const;
     };
 
     template<typename T>

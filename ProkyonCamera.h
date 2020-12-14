@@ -55,36 +55,33 @@ namespace Prokyon {
         int IsExposureSequenceable(bool &isSequenceable) const;
 
     public:
-        int update_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
-        int update_vector_property(MM::PropertyBase *p_prop, MM::ActionType type);
-        int update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
-        int update_string_property(MM::PropertyBase *p_prop, MM::ActionType type);
-        // special case for image mode index and virtual image mode index
-        int update_image_mode(MM::PropertyBase *p_prop, MM::ActionType type);
-
-        int get_integer_scalar_value(MM::PropertyBase *p_prop) const;
-        void set_integer_scalar_value(int v, MM::PropertyBase *p_prop);
-
-        std::vector<int> get_integer_vector_value(MM::PropertyBase *p_prop, bool &success) const;
-        void set_integer_vector_value(std::vector<int> values, MM::PropertyBase *p_prop);
-
-        double get_double_scalar_value(MM::PropertyBase *p_prop) const;
-        void set_double_scalar_value(double v, MM::PropertyBase *p_prop);
-
-        std::vector<double> get_double_vector_value(MM::PropertyBase *p_prop, bool &success) const;
-        void set_double_vector_value(std::vector<double> v, MM::PropertyBase *p_prop);
-
-        NumericProperty *get_property(MM::PropertyBase *p_prop);
-        const NumericProperty *get_property(MM::PropertyBase *p_prop) const;
-        StringProperty *get_string_property(MM::PropertyBase *p_prop);
-        const StringProperty *get_string_property(MM::PropertyBase *p_prop) const;
-        std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
-
-    public:
         static const char *get_name(); // done
         static const char *get_description(); // done
 
     private:
+        void setup_numeric_property(DijSDK_EParamId id, std::string id_name, std::string display_name);
+        void setup_bool_property(DijSDK_EParamId id, std::string id_name, std::string display_name);
+        void setup_string_property(DijSDK_EParamId id, std::string id_name, std::string display_name);
+        void setup_image_mode_property();
+
+        int update_numeric_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_string_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        // special case for image mode index and virtual image mode index
+        int update_image_mode_property(MM::PropertyBase *p_prop, MM::ActionType type);
+
+        std::vector<int> get_integer_value(MM::PropertyBase *p_prop, bool &success) const;
+        void set_integer_value(std::vector<int> values, MM::PropertyBase *p_prop);
+
+        std::vector<double> get_double_value(MM::PropertyBase *p_prop, bool &success) const;
+        void set_double_value(std::vector<double> v, MM::PropertyBase *p_prop);
+
+        NumericProperty *get_numeric_property(MM::PropertyBase *p_prop);
+        const NumericProperty *get_numeric_property(MM::PropertyBase *p_prop) const;
+        StringProperty *get_string_property(MM::PropertyBase *p_prop);
+        const StringProperty *get_string_property(MM::PropertyBase *p_prop) const;
+        std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
+
         int log_error(const char *func, const int line, const std::string &message = "") const;
 
         std::unique_ptr<Camera> m_p_camera;
@@ -93,7 +90,7 @@ namespace Prokyon {
         std::unique_ptr<RegionOfInterest> m_p_roi;
 
         std::map<std::string, std::unique_ptr<StringProperty>> m_string_properties;
-        std::map<std::string, std::unique_ptr<NumericProperty>> m_properties;
+        std::map<std::string, std::unique_ptr<NumericProperty>> m_numeric_properties;
         std::map<std::string, std::unique_ptr<MappedScalarIntProperty>> m_mapped_scalar_properties;
 
         static const DijSDK_CameraKey M_S_KEY;
@@ -102,20 +99,6 @@ namespace Prokyon {
         static const std::string M_S_IMAGE_MODE_NAME;
         static const std::string M_S_VIRTUAL_IMAGE_MODE_NAME;
         static const std::vector<unsigned char> M_S_TEST_IMAGE;
-
-        // debug
-        struct SDKParameter {
-            std::string name;
-            DijSDK_EParamId id;
-        };
-        /*
-                    Returns E_FAIL if camera handle not found
-                    */
-        void LogProperties() const;
-        /*
-                    Returns E_OK if supported, E_DIJSDK_PARAMETER_NOT_AVAILABLE_ if not supported, E_FAIL if camera unavailable
-                    */
-        void LogProperty(const SDKParameter parameter) const;
     };
 } // namespace Prokyon
 
