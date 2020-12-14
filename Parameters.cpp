@@ -11,6 +11,16 @@ namespace Prokyon {
         m_id{id}
     {}
 
+    bool StringProperty::writeable() const {
+        DijSDK_EParamAccess access = static_cast<DijSDK_EParamAccess>(0);
+        auto result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, &access);
+        if (result) {
+            assert(false);
+            // todo throw
+        }
+        return (access == DijSDK_EParamAccessReadWrite) || (access == DijSDK_EParamAccessWriteOnly);
+    }
+
     std::string StringProperty::get() const {
         auto p = get_string_parameter(m_handle, m_id, 1024u);
         if (p.error) {
@@ -167,8 +177,8 @@ namespace Prokyon {
                 ss << value_to_string<int>();
                 break;
             case Type::DoubleType:
-                ss << value_to_string<double>();
                 break;
+                ss << value_to_string<double>();
             default:
                 assert(false);
         }

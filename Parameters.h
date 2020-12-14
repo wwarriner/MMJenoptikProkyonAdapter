@@ -23,6 +23,7 @@ namespace Prokyon {
     class StringProperty {
     public:
         StringProperty(DijSDK_Handle handle, DijSDK_EParamId id);
+        bool writeable() const;
         std::string get() const;
 
     private:
@@ -74,6 +75,8 @@ namespace Prokyon {
             DoubleType = 2
         };
         Type type() const;
+
+        static const char DELIMITER = '|';
 
     protected:
         template<typename T>
@@ -262,7 +265,7 @@ namespace Prokyon {
                 ss << v;
             }
             else {
-                ss << ", " << v;
+                ss << " " << DELIMITER << " " << v;
             }
         }
         return ss.str();

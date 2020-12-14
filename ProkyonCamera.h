@@ -58,6 +58,7 @@ namespace Prokyon {
         int update_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
         int update_vector_property(MM::PropertyBase *p_prop, MM::ActionType type);
         int update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_string_property(MM::PropertyBase *p_prop, MM::ActionType type);
         // special case for image mode index and virtual image mode index
         int update_image_mode(MM::PropertyBase *p_prop, MM::ActionType type);
 
@@ -75,6 +76,8 @@ namespace Prokyon {
 
         NumericProperty *get_property(MM::PropertyBase *p_prop);
         const NumericProperty *get_property(MM::PropertyBase *p_prop) const;
+        StringProperty *get_string_property(MM::PropertyBase *p_prop);
+        const StringProperty *get_string_property(MM::PropertyBase *p_prop) const;
         std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
 
     public:
@@ -89,6 +92,7 @@ namespace Prokyon {
         std::unique_ptr<AcquisitionParameters> m_p_acq_parameters;
         std::unique_ptr<RegionOfInterest> m_p_roi;
 
+        std::map<std::string, std::unique_ptr<StringProperty>> m_string_properties;
         std::map<std::string, std::unique_ptr<NumericProperty>> m_properties;
         std::map<std::string, std::unique_ptr<MappedScalarIntProperty>> m_mapped_scalar_properties;
 
