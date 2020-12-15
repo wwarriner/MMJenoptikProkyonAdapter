@@ -65,8 +65,9 @@ namespace Prokyon {
         void setup_image_mode_property();
 
         int update_numeric_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_bool_property(MM::PropertyBase *p_prop, MM::ActionType type);
         int update_string_property(MM::PropertyBase *p_prop, MM::ActionType type);
-        int update_mapped_scalar_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        int update_discrete_set_property(MM::PropertyBase *p_prop, MM::ActionType type);
         // special case for image mode index and virtual image mode index
         int update_image_mode_property(MM::PropertyBase *p_prop, MM::ActionType type);
 
@@ -82,6 +83,7 @@ namespace Prokyon {
         const StringProperty *get_string_property(MM::PropertyBase *p_prop) const;
         std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
 
+        void log_property_name(const std::string &name) const;
         int log_error(const char *func, const int line, const std::string &message = "") const;
 
         std::unique_ptr<Camera> m_p_camera;
@@ -91,7 +93,8 @@ namespace Prokyon {
 
         std::map<std::string, std::unique_ptr<StringProperty>> m_string_properties;
         std::map<std::string, std::unique_ptr<NumericProperty>> m_numeric_properties;
-        std::map<std::string, std::unique_ptr<MappedScalarIntProperty>> m_mapped_scalar_properties;
+        std::map<std::string, std::unique_ptr<BoolProperty>> m_bool_properties;
+        std::map<std::string, std::unique_ptr<DiscreteSetProperty>> m_discrete_set_properties;
 
         static const DijSDK_CameraKey M_S_KEY;
         static const std::string M_S_CAMERA_NAME;

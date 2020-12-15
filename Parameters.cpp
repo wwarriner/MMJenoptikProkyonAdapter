@@ -6,205 +6,91 @@
 #include <algorithm>
 
 namespace Prokyon {
-    StringProperty::StringProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
+    PropertyBase::PropertyBase(DijSDK_Handle handle, DijSDK_EParamId id) :
         m_handle{handle},
         m_id{id}
     {}
 
-    bool StringProperty::writeable() const {
-        DijSDK_EParamAccess access = static_cast<DijSDK_EParamAccess>(0);
-        auto result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, &access);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
-        return (access == DijSDK_EParamAccessReadWrite) || (access == DijSDK_EParamAccessWriteOnly);
+    bool PropertyBase::exists() const {
+        return DijSDK_HasParameter(m_handle, m_id) == E_OK;
     }
 
-    std::string StringProperty::get() const {
-        auto p = get_string_parameter(m_handle, m_id, 1024u);
-        if (p.error) {
-            // todo handle
-            assert(false);
-        }
-        return p.value;
-    }
+    unsigned PropertyBase::dimension() const {
+        assert(exists());
 
-    std::string StringProperty::short_specification_to_string() const {
-        return "scalar | string | " + writeable_to_string(); // hardware API dictates scalar strings
-    }
-
-    std::string StringProperty::writeable_to_string() const {
-        return writeable() ? "rw" : "ro";
-    }
-
-    NumericProperty::NumericProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
-        m_handle{handle},
-        m_id{id}
-    {}
-
-    unsigned NumericProperty::dimension() const {
         unsigned dimension = 0;
         auto result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, nullptr, &dimension);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
+        if (result) { assert(false); }
         return dimension;
     }
 
-    bool NumericProperty::writeable() const {
-        DijSDK_EParamAccess access = static_cast<DijSDK_EParamAccess>(0);
+    bool PropertyBase::writeable() const {
+        assert(exists());
+
+        auto access = static_cast<DijSDK_EParamAccess>(0);
         auto result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, &access);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
+        if (result) { assert(false); }
         return (access == DijSDK_EParamAccessReadWrite) || (access == DijSDK_EParamAccessWriteOnly);
     }
 
-    bool NumericProperty::is_discrete() const {
+    bool PropertyBase::is_discrete() const {
+        assert(exists());
+
         DijSDK_EParamValueType value_type = static_cast<DijSDK_EParamValueType>(0);
         auto result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, nullptr, nullptr, &value_type);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
+        if (result) { assert(false); }
         return value_type == DijSDK_EParamValueTypeDiscreteSet;
     }
 
-    std::vector<int> NumericProperty::range_discrete() const {
-        assert(type() == Type::IntType);
-        unsigned value_count = 0;
-        auto result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, nullptr, nullptr, nullptr, nullptr, &value_count);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
-        assert(0 < value_count);
-        std::vector<int> range(value_count, 0);
-        result = DijSDK_GetParameterSpec(m_handle, m_id, nullptr, nullptr, nullptr, nullptr, range.data(), &value_count);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
-        assert(0 < range.size());
-        return range;
-    }
+    std::string PropertyBase::short_specification_to_string() const {
+        assert(exists());
 
-    std::vector<int> NumericProperty::range_int() const {
-        assert(type() == Type::IntType);
-        return range<int>();
-    }
-
-    std::vector<double> NumericProperty::range_double() const {
-        assert(type() == Type::DoubleType);
-        return range<double>();
-    }
-
-    void NumericProperty::normalize_int(std::vector<int> &v) const {
-        assert(type() == Type::IntType);
-        normalize<int>(v);
-    }
-
-    void NumericProperty::normalize_double(std::vector<double> &v) const {
-        assert(type() == Type::DoubleType);
-        normalize<double>(v);
-    }
-
-    bool NumericProperty::allowed_discrete(int value) const {
-        assert(type() == Type::IntType);
-        auto r = range_discrete();
-        return std::find(r.cbegin(), r.cend(), value) != r.cend();
-    }
-
-    bool NumericProperty::allowed_int(int value) const {
-        assert(type() == Type::IntType);
-        return allowed<int>(value);
-    }
-
-    bool NumericProperty::allowed_double(double value) const {
-        assert(type() == Type::DoubleType);
-        return allowed<double>(value);
-    }
-
-    std::vector<int> NumericProperty::get_int() const {
-        assert(type() == Type::IntType);
-        return get<int>();
-    }
-
-    std::vector<double> NumericProperty::get_double() const {
-        assert(type() == Type::DoubleType);
-        return get<double>();
-    }
-
-    void NumericProperty::set(const std::vector<int> &value) {
-        assert(type() == Type::IntType);
-        set<int>(value);
-    }
-
-    void NumericProperty::set(const std::vector<double> &value) {
-        assert(type() == Type::DoubleType);
-        set<double>(value);
-    }
-
-    std::string NumericProperty::vector_to_string() const {
         std::stringstream ss;
-        switch (type()) {
-            case Type::IntType:
-                ss << value_to_string<int>();
-                break;
-            case Type::DoubleType:
-                break;
-                ss << value_to_string<double>();
-            default:
-                assert(false);
-        }
-        return ss.str();
-    }
-
-    std::string NumericProperty::short_specification_to_string() const {
-        std::stringstream ss;
-        ss << dimension_to_string() << " | ";
-        ss << type_to_string() << " | ";
+        ss << dimension_to_string() << " " << DELIMITER << " ";
+        ss << type_to_string() << " " << DELIMITER << " ";
         ss << writeable_to_string();
         return ss.str();
     }
 
-    std::string NumericProperty::specification_to_string() const {
+    std::string PropertyBase::specification_to_string() const {
+        assert(exists());
+
         std::stringstream ss;
-        ss << "dimension: " << dimension() << "\n";
-        ss << "writeable: " << writeable() << "\n";
-        ss << "is discrete: " << is_discrete() << "\n";
-        ss << "range:\n";
-        switch (type()) {
-            case Type::IntType:
-                ss << range_to_string<int>();
-                break;
-            case Type::DoubleType:
-                ss << range_to_string<double>();
-                break;
-            default:
-                assert(false);
-        }
+        ss << "type:" << type_to_string() << "\n";
+        ss << "dimension: " << dimension_to_string() << "\n";
+        ss << "writeable: " << writeable_to_string() << "\n";
+        ss << "is discrete: " << bool_to_string(is_discrete()) << "\n";
+        ss << "range:\n" << range_to_string() << "\n";
         return ss.str();
     }
 
-    NumericProperty::Type NumericProperty::type() const {
-        DijSDK_EParamType mm_type = static_cast<DijSDK_EParamType>(0);
+    PropertyBase::Type PropertyBase::type() const {
+        assert(exists());
+
+        auto mm_type = static_cast<DijSDK_EParamType>(0);
         auto result = DijSDK_GetParameterSpec(m_handle, m_id, &mm_type);
-        if (result) {
-            assert(false);
-            // todo throw
-        }
-        Type out = Type::UnspecifiedType;
+        if (result) { assert(false); }
+        auto out = Type::Unspecified;
         switch (mm_type) {
+            case DijSDK_EParamTypeNotSpecified:
+                out = Type::Unspecified;
+                break;
             case DijSDK_EParamTypeBool:
+                out = Type::Bool;
+                break;
             case DijSDK_EParamTypeInteger:
-                out = Type::IntType;
+                if (is_discrete()) {
+                    out = Type::Set;
+                }
+                else {
+                    out = Type::Int;
+                }
                 break;
             case DijSDK_EParamTypeDouble:
-                out = Type::DoubleType;
+                out = Type::Double;
+                break;
+            case DijSDK_EParamTypeString:
+                out = Type::String;
                 break;
             default:
                 assert(false);
@@ -212,7 +98,23 @@ namespace Prokyon {
         return out;
     }
 
-    std::string NumericProperty::dimension_to_string() const {
+    DijSDK_Handle &PropertyBase::handle() {
+        return m_handle;
+    }
+
+    const DijSDK_Handle &PropertyBase::handle() const {
+        return m_handle;
+    }
+
+    DijSDK_EParamId &PropertyBase::id() {
+        return m_id;
+    }
+
+    const DijSDK_EParamId &PropertyBase::id() const {
+        return m_id;
+    }
+
+    std::string PropertyBase::dimension_to_string() const {
         std::string out;
         auto d = dimension();
         if (d == 1) {
@@ -229,14 +131,26 @@ namespace Prokyon {
         return out;
     }
 
-    std::string NumericProperty::type_to_string() const {
+    std::string PropertyBase::type_to_string() const {
         std::string out;
         switch (type()) {
-            case Type::DoubleType:
+            case Type::Unspecified:
+                out = "unspecified type";
+                break;
+            case Type::Bool:
+                out = "bool";
+                break;
+            case Type::Int:
+                out = "int";
+                break;
+            case Type::Double:
                 out = "double";
                 break;
-            case Type::IntType:
-                out = "int";
+            case Type::String:
+                out = "string";
+                break;
+            case Type::Set:
+                out = "discrete set";
                 break;
             default:
                 assert(false);
@@ -244,55 +158,157 @@ namespace Prokyon {
         return out;
     }
 
-    std::string NumericProperty::writeable_to_string() const {
+    std::string PropertyBase::writeable_to_string() const {
         return writeable() ? "rw" : "ro";
     }
 
-    BoolProperty::BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
-        NumericProperty(handle, id) {}
-
-    std::vector<int> BoolProperty::range_int() const {
-        assert(type() == NumericProperty::Type::IntType);
-        return {0, 1};
+    std::string PropertyBase::bool_to_string(bool v) {
+        return v ? "true" : "false";
     }
 
-    void BoolProperty::normalize_int(std::vector<int> &value) const {
-        auto r = range_int();
-        for (auto &v : value) {
-            if (v < r[0]) {
-                v = r[0];
-            }
-            else if (r[1] < v) {
-                v = r[1];
-            }
+    StringProperty::StringProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
+        PropertyBase(handle, id) {
+        assert(type() == Type::String);
+    }
+
+    std::string StringProperty::get() const {
+        assert(exists());
+        assert(type() == Type::String);
+
+        auto p = get_string_parameter(handle(), id(), 1024u);
+        if (p.error) { assert(false); }
+        return p.value;
+    }
+
+    std::string StringProperty::range_to_string() const {
+        assert(exists());
+        assert(type() == Type::String);
+        return "N/A";
+    }
+
+    NumericProperty::NumericProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
+        PropertyBase(handle, id) {
+        assert(
+            type() == Type::Double
+            || type() == Type::Int
+            || type() == Type::Set
+            || type() == Type::Bool
+        );
+    }
+
+    std::vector<int> NumericProperty::range_int() const {
+        assert(exists());
+        std::vector<int> out;
+        if (type() == Type::Int) {
+            out = range<int>();
         }
+        else if (type() == Type::Bool) {
+            out = {0, 1};
+        }
+        else {
+            assert(false);
+        }
+        return out;
     }
 
-    bool BoolProperty::allowed_int(int value) const {
-        return value == 0 || value == 1;
+    std::vector<double> NumericProperty::range_double() const {
+        assert(exists());
+        assert(type() == Type::Double);
+        return range<double>();
     }
 
-    void BoolProperty::set(const std::vector<int> &value) {
+    void NumericProperty::normalize_int(std::vector<int> &v) const {
+        assert(exists());
+        assert(type() == Type::Int);
+        normalize<int>(v);
+    }
+
+    void NumericProperty::normalize_double(std::vector<double> &v) const {
+        assert(exists());
+        assert(type() == Type::Double);
+        normalize<double>(v);
+    }
+
+    bool NumericProperty::allowed_int(int value) const {
+        assert(exists());
+        auto out = false;
+        if (type() == Type::Int) {
+            out = allowed<int>(value);
+        }
+        else if (type() == Type::Bool) {
+            out = (value == 0) || (value == 1);
+        }
+        else {
+            assert(false);
+        }
+        return out;
+    }
+
+    bool NumericProperty::allowed_double(double value) const {
+        assert(exists());
+        assert(type() == Type::Double);
+        return allowed<double>(value);
+    }
+
+    std::vector<int> NumericProperty::get_int() const {
+        assert(exists());
+        assert(type() == Type::Int || type() == Type::Bool || type() == Type::Set);
+        return get<int>();
+    }
+
+    std::vector<double> NumericProperty::get_double() const {
+        assert(exists());
+        assert(type() == Type::Double);
+        return get<double>();
+    }
+
+    void NumericProperty::set(const std::vector<int> &value) {
+        assert(exists());
         assert(writeable());
-        NumericProperty::set<int>(value);
+        assert(type() == Type::Int || type() == Type::Bool || type() == Type::Set);
+        set<int>(value);
     }
 
-    std::vector<int> BoolProperty::get_int() const {
-        return NumericProperty::get<int>();
+    void NumericProperty::set(const std::vector<double> &value) {
+        assert(exists());
+        assert(writeable());
+        assert(type() == Type::Double);
+        set<double>(value);
     }
 
-    std::string BoolProperty::vector_to_string() const {
-        std::stringstream ss;
-        ss << get_int()[0];
-        return ss.str();
+    std::string NumericProperty::vector_to_string() const {
+        assert(exists());
+        std::string out;
+        switch (type()) {
+            case Type::Int:
+                out = vec_to_string(get<int>());
+                break;
+            case Type::Double:
+                out = vec_to_string(get<double>());
+                break;
+            default:
+                assert(false);
+        }
+        return out;
     }
 
-    std::string BoolProperty::type_to_string() const {
-        return "bool";
+    std::string NumericProperty::range_to_string() const {
+        std::string out;
+        switch (type()) {
+            case Type::Int:
+                out = value_range_to_string(range<int>());
+                break;
+            case Type::Double:
+                out = value_range_to_string(range<double>());
+                break;
+            default:
+                assert(false);
+        }
+        return out;
     }
 
-    MappedScalarIntProperty::MappedScalarIntProperty(NumericProperty prop, std::map<std::string, int> forward, bool pseudo_mapped) :
-        m_property{prop},
+    DiscreteSetProperty::DiscreteSetProperty(DijSDK_Handle handle, DijSDK_EParamId id, std::map<std::string, int> forward, bool pseudo_mapped) :
+        NumericProperty(handle, id),
         m_forward{forward},
         m_reverse{},
         m_range{},
@@ -300,10 +316,10 @@ namespace Prokyon {
     {
         for (const auto &e : m_forward) {
             if (m_pseudo_mapped) {
-                assert(m_property.allowed_int(e.second));
+                assert(NumericProperty::allowed_int(e.second));
             }
             else {
-                assert(m_property.allowed_discrete(e.second));
+                assert(allowed_discrete(e.second));
             }
         }
 
@@ -318,42 +334,81 @@ namespace Prokyon {
             range.emplace_back(e.first);
         }
         m_range = range;
+
+        assert(
+            type() == Type::Set
+            || (type() == Type::Int && m_pseudo_mapped)
+            || (type() == Type::Bool && m_pseudo_mapped)
+        );
     }
 
-    bool MappedScalarIntProperty::writeable() const {
-        return m_property.writeable();
+    std::vector<int> DiscreteSetProperty::range_discrete() const {
+        assert(exists());
+        assert(type() == Type::Set);
+
+        unsigned value_count = 0;
+        auto result = DijSDK_GetParameterSpec(handle(), id(), nullptr, nullptr, nullptr, nullptr, nullptr, &value_count);
+        if (result) { assert(false); }
+        assert(0 < value_count);
+
+        std::vector<int> range(value_count, 0);
+        result = DijSDK_GetParameterSpec(handle(), id(), nullptr, nullptr, nullptr, nullptr, range.data(), &value_count);
+        if (result) { assert(false); }
+        assert(0 < range.size());
+
+        return range;
     }
 
-    std::vector<std::string> &MappedScalarIntProperty::range() {
+    bool DiscreteSetProperty::allowed_discrete(int value) const {
+        assert(exists());
+        assert(type() == Type::Set);
+        auto r = range_discrete();
+        return std::find(r.cbegin(), r.cend(), value) != r.cend();
+    }
+
+    std::vector<std::string> &DiscreteSetProperty::range() {
         return m_range;
     }
 
-    const std::vector<std::string> &MappedScalarIntProperty::range() const {
+    const std::vector<std::string> &DiscreteSetProperty::range() const {
         return m_range;
     }
 
-    std::string MappedScalarIntProperty::get() const {
-        auto v = m_property.get_int()[0];
+    std::string DiscreteSetProperty::get() const {
+        auto v = NumericProperty::get_int()[0];
         return m_reverse.at(v);
     }
 
-    void MappedScalarIntProperty::set(const std::string &value) {
+    void DiscreteSetProperty::set(const std::string &value) {
+        assert(exists());
         auto v = m_forward.at(value);
-        auto old = m_property.get_int();
+        auto old = NumericProperty::get_int();
         old[0] = v;
-        m_property.set(old);
+        NumericProperty::set(old);
     }
 
-    std::string MappedScalarIntProperty::short_specification_to_string() const {
-        return "scalar | discrete | " + writeable_to_string(); // hardware API dictates scalar strings
+    std::string DiscreteSetProperty::range_to_string() const {
+        assert(exists());
+        std::stringstream ss;
+        auto is_first = true;
+        for (const auto &v : m_range) {
+            if (is_first) {
+                is_first = false;
+                ss << v;
+            }
+            else {
+                ss << "\n" << v;
+            }
+        }
+        return ss.str();
     }
 
-    std::string MappedScalarIntProperty::writeable_to_string() const {
-        return writeable() ? "rw" : "ro";
+    BoolProperty::BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id) :
+        DiscreteSetProperty(handle, id, {{"false", 0}, {"true", 1}}, true) {
+        assert(type() == Type::Bool);
     }
 
     // free functions
-
     StringParameter get_string_parameter(DijSDK_Handle handle, DijSDK_EParamId param_id, unsigned int length) {
         std::vector<char> value(length, char{});
         auto result = DijSDK_GetStringParameter(handle, param_id, value.data(), length);

@@ -20,63 +20,122 @@ using DijSDK_Handle = void *;
 using error_t = int;
 
 namespace Prokyon {
-    class StringProperty {
+    class PropertyBase {
     public:
-        StringProperty(DijSDK_Handle handle, DijSDK_EParamId id);
+        PropertyBase(DijSDK_Handle handle, DijSDK_EParamId id);
+
+        bool exists() const;
+
+        unsigned dimension() const;
         bool writeable() const;
-        std::string get() const;
+        bool is_discrete() const;
 
         std::string short_specification_to_string() const;
+        std::string specification_to_string() const;
+
+        enum class Type {
+            Unspecified = 0,
+            Bool = 1,
+            Int = 2,
+            Double = 3,
+            String = 4,
+            Set = 5,
+        };
+        Type type() const;
+
+        static const char DELIMITER = '|';
+        static const unsigned PRECISION = 4u;
+
+    protected:
+        DijSDK_Handle &handle();
+        const DijSDK_Handle &handle() const;
+        DijSDK_EParamId &id();
+        const DijSDK_EParamId &id() const;
+
+        virtual std::string range_to_string() const = 0;
+        template<typename T>
+        std::string vec_to_string(const std::vector<T> values) const;
+
+        template<typename T>
+        static std::string value_range_to_string(std::vector<T> range);
+
+    private:
+        std::string dimension_to_string() const;
+        std::string type_to_string() const;
         std::string writeable_to_string() const;
+
+        static std::string bool_to_string(bool v);
+        template<typename T>
+        static std::string vec_to_string(const std::vector<T> values, const char delimiter, const unsigned precision);
 
     private:
         DijSDK_Handle m_handle;
         DijSDK_EParamId m_id;
     };
 
-    class NumericProperty {
+    template<typename T>
+    std::string PropertyBase::vec_to_string(const std::vector<T> values) const {
+        return vec_to_string(values, DELIMITER, PRECISION);
+    }
+
+    template<typename T>
+    std::string PropertyBase::value_range_to_string(const std::vector<T> range) {
+        std::stringstream ss;
+        assert(range.size() == 2);
+        ss << "[" << range[0] << ", " << range[1] << "]";
+        return ss.str();
+    }
+
+    template<typename T>
+    std::string PropertyBase::vec_to_string(const std::vector<T> values, const char delimiter, const unsigned precision) {
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(precision);
+        auto is_first = true;
+        for (const auto &v : values) {
+            if (is_first) {
+                is_first = false;
+                ss << v;
+            }
+            else {
+                ss << " " << delimiter << " " << v;
+            }
+        }
+        return ss.str();
+    }
+
+    class StringProperty : public PropertyBase {
+    public:
+        StringProperty(DijSDK_Handle handle, DijSDK_EParamId id);
+        std::string get() const;
+        // no set because no useful read-only properties at this time
+
+    protected:
+        virtual std::string range_to_string() const;
+    };
+
+    class NumericProperty : public PropertyBase {
     public:
         NumericProperty(DijSDK_Handle handle, DijSDK_EParamId id);
 
-        unsigned dimension() const;
-
-        bool writeable() const;
-
-        bool is_discrete() const;
-
-        std::vector<int> range_discrete() const;
-        virtual std::vector<int> range_int() const;
+        std::vector<int> range_int() const;
         std::vector<double> range_double() const;
 
-        virtual void normalize_int(std::vector<int> &v) const;
+        void normalize_int(std::vector<int> &v) const;
         void normalize_double(std::vector<double> &v) const;
 
-        bool allowed_discrete(int value) const;
-        virtual bool allowed_int(int value) const;
+        bool allowed_int(int value) const;
         bool allowed_double(double value) const;
 
-        virtual std::vector<int> get_int() const;
+        std::vector<int> get_int() const;
         std::vector<double> get_double() const;
 
-        virtual void set(const std::vector<int> &value);
+        void set(const std::vector<int> &value);
         void set(const std::vector<double> &value);
 
-        virtual std::string vector_to_string() const;
-        std::string short_specification_to_string() const;
-        std::string specification_to_string() const;
+        std::string vector_to_string() const;
 
-        enum class Type {
-            UnspecifiedType = 0,
-            IntType = 1,
-            DoubleType = 2
-        };
-        Type type() const;
-
-        std::string dimension_to_string() const;
-        virtual std::string type_to_string() const;
-        std::string writeable_to_string() const;
-
-        static const char DELIMITER = '|';
+    protected:
+        virtual std::string range_to_string() const;
 
     protected:
         template<typename T>
@@ -90,25 +149,12 @@ namespace Prokyon {
         template<typename T>
         std::vector<T> get() const;
         template<typename T>
-        T get(unsigned index) const;
-        template<typename T>
         void set(const std::vector<T> &value);
-        template<typename T>
-        void set(const T &value, unsigned index);
-        template<typename T>
-        std::string value_to_string() const;
-        template<typename T>
-        std::string range_to_string() const;
-
-        DijSDK_Handle m_handle;
-        DijSDK_EParamId m_id;
     };
 
-    class MappedScalarIntProperty {
+    class DiscreteSetProperty : public NumericProperty {
     public:
-        MappedScalarIntProperty(NumericProperty prop, std::map<std::string, int> forward, bool pseudo_mapped = false);
-
-        bool writeable() const;
+        DiscreteSetProperty(DijSDK_Handle handle, DijSDK_EParamId id, std::map<std::string, int> forward, bool pseudo_mapped = false);
 
         std::vector<std::string> &range();
         const std::vector<std::string> &range() const;
@@ -116,32 +162,23 @@ namespace Prokyon {
         std::string get() const;
         void set(const std::string &value);
 
-        std::string short_specification_to_string() const;
-        std::string writeable_to_string() const;
+    protected:
+        virtual std::string range_to_string() const;
 
     private:
-        NumericProperty m_property;
+        std::vector<int> range_discrete() const;
+        bool allowed_discrete(int value) const;
+
+    private:
         std::map<std::string, int> m_forward;
         std::map<int, std::string> m_reverse;
         std::vector<std::string> m_range;
         bool m_pseudo_mapped;
     };
 
-    // TODO make like MappedScalarIntProperty
-    // use drop-down "on/off"
-    class BoolProperty : public NumericProperty {
+    class BoolProperty : public DiscreteSetProperty {
     public:
         BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id);
-
-        virtual std::vector<int> range_int() const;
-        virtual void normalize_int(std::vector<int> &v) const;
-        virtual bool allowed_int(int value) const;
-        virtual void set(const std::vector<int> &value);
-        virtual std::vector<int> get_int() const;
-
-        virtual std::string vector_to_string() const;
-
-        virtual std::string type_to_string() const;
     };
 
     template<typename T>
@@ -184,18 +221,16 @@ namespace Prokyon {
     template<typename T>
     std::vector<T> NumericProperty::range() const {
         std::vector<T> range;
-        auto p = get_numeric_parameter<T>(m_handle, m_id, dimension(), DijSDK_EParamQueryMin);
-        if (p.error) {
-            // todo handle
-            assert(false);
-        }
+
+        auto p = get_numeric_parameter<T>(handle(), id(), dimension(), DijSDK_EParamQueryMin);
+        if (p.error) { assert(false); }
         range.push_back(p.value[0]);
-        p = get_numeric_parameter<T>(m_handle, m_id, dimension(), DijSDK_EParamQueryMax);
-        if (p.error) {
-            // todo handle
-            assert(false);
-        }
+
+        p = get_numeric_parameter<T>(handle(), id(), dimension(), DijSDK_EParamQueryMax);
+        if (p.error) { assert(false); }
         range.push_back(p.value[0]);
+
+        assert(range[0] <= range[1]);
         assert(range.size() == 2);
         return range;
     }
@@ -203,17 +238,12 @@ namespace Prokyon {
     template<typename T>
     void NumericProperty::normalize(T &v) const {
         auto r = range<T>();
-        if (v < r[0]) {
-            v = r[0];
-        }
-        else if (r[1] < v) {
-            v = r[1];
-        }
+        if (v < r[0]) { v = r[0]; }
+        if (r[1] < v) { v = r[1]; }
     }
 
     template<typename T>
     void NumericProperty::normalize(std::vector<T> &v) const {
-        auto r = range<T>();
         for (auto i = 0; i < v.size(); ++i) {
             normalize<T>(v[i]);
         }
@@ -229,63 +259,19 @@ namespace Prokyon {
 
     template<typename T>
     std::vector<T> NumericProperty::get() const {
-        auto p = get_numeric_parameter<T>(m_handle, m_id, dimension(), DijSDK_EParamQueryCurrent);
-        if (p.error) {
-            // todo handle
-            assert(false);
-        }
+        auto p = get_numeric_parameter<T>(handle(), id(), dimension(), DijSDK_EParamQueryCurrent);
+        if (p.error) { assert(false); }
         return p.value;
-    }
-
-    template<typename T>
-    T NumericProperty::get(unsigned index) const {
-        return get<T>()[index];
     }
 
     template<typename T>
     void NumericProperty::set(const std::vector<T> &value) {
         assert(writeable());
-        auto p = set_numeric_parameter<T>(m_handle, m_id, value);
+        auto p = set_numeric_parameter<T>(handle(), id(), value);
         if (p) {
             // todo handle
             assert(false);
         }
-    }
-
-    template<typename T>
-    void NumericProperty::set(const T &value, unsigned index) {
-        assert(writeable());
-        auto v = get<T>();
-        assert(index < v.size());
-        v[index] = value;
-        set(v);
-    }
-
-    template<typename T>
-    std::string NumericProperty::value_to_string() const {
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(4u);
-        auto is_first = true;
-        for (const auto &v : get<T>()) {
-            if (is_first) {
-                is_first = false;
-                ss << v;
-            }
-            else {
-                ss << " " << DELIMITER << " " << v;
-            }
-        }
-        return ss.str();
-    }
-
-    template<typename T>
-    std::string NumericProperty::range_to_string() const {
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(4u);
-        for (const auto &e : range<T>()) {
-            ss << "  " << e << "\n";
-        }
-        return ss.str();
     }
 
     template<typename T>
