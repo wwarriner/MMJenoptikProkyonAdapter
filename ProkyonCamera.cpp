@@ -22,6 +22,14 @@
 #include <limits>
 #include <algorithm> // debug
 
+// TODO
+// Need to fix a few errors:
+//  (1) can't do multi-d acq because "Color Mode" prop is not valid name?
+//  (2) can't convert string to java.awt.color?
+//  (3) can't find color property??
+//  (4) something generally wrong with color mode property...
+//  (5) document crash when trying to change color mode while live (shouldn't happen??)
+
 // ModuleInterface.h
 // Required for initialization and DLL export
 
