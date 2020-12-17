@@ -79,6 +79,7 @@ namespace Prokyon {
 
                 LogMessage("creating image buffer");
                 m_p_image = std::make_unique<Image>(m_p_camera.get());
+                LogMessage(m_p_image->to_string());
 
                 LogMessage("creating roi");
                 m_p_roi = std::make_unique<RegionOfInterest>(m_p_camera.get());
@@ -233,28 +234,13 @@ namespace Prokyon {
     // CameraBase
     int ProkyonCamera::SnapImage() {
         LogMessage("snapping image");
-
-        m_p_image->acquire();
-
-        std::stringstream ss;
-        ss << "image handle: " << m_p_image << "\n";
-        LogMessage(ss.str()); ss.str("");
-        ss << "component_count: " << m_p_image->get_number_of_components() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        ss << "bits_per_channel: " << m_p_image->get_bit_depth() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        ss << "bytes_per_pixel: " << m_p_image->get_image_bytes_per_pixel() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        ss << "size: " << m_p_image->get_image_width() << ", " << m_p_image->get_image_height() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        ss << "bytes: " << m_p_image->get_image_buffer_size() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        ss << "binning: " << GetBinning() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        ss << "exposure_ms: " << GetExposure() << std::endl;
-        LogMessage(ss.str()); ss.str("");
-        LogMessage("done");
-
+        auto success = m_p_image->acquire();
+        if (!success) {
+            return DEVICE_ERR;
+        }
+        else {
+            LogMessage(m_p_image->to_string());
+        }
         return DEVICE_OK;
     }
 
@@ -340,11 +326,7 @@ namespace Prokyon {
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            auto v = m_p_image->get_bit_depth();
-            std::stringstream ss;
-            ss << "bit depth: " << v;
-            LogMessage(ss.str());
-            return v;
+            return m_p_image->get_bit_depth();
         }
     }
 
@@ -533,10 +515,9 @@ namespace Prokyon {
             {"Gray 16 bpp", DijSDK_EImageFormatGrey16}
         };
         auto p_output_format = std::make_unique<DiscreteSetProperty>(*m_p_camera, ParameterIdImageProcessingOutputFormat, output_format_forward, false);
-        std::string output_format_name{"Image Processing-Color Mode"};
-        this->CreatePropertyWithHandler(output_format_name.c_str(), p_output_format->range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_discrete_set_property, false);
-        this->SetAllowedValues(output_format_name.c_str(), p_output_format->range());
-        m_discrete_set_properties[output_format_name] = std::move(p_output_format);
+        this->CreatePropertyWithHandler(M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME.c_str(), p_output_format->range()[0].c_str(), MM::PropertyType::String, false, &ProkyonCamera::update_discrete_set_property, false);
+        this->SetAllowedValues(M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME.c_str(), p_output_format->range());
+        m_discrete_set_properties[M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME] = std::move(p_output_format);
     }
 
     int ProkyonCamera::update_numeric_property(MM::PropertyBase *p_prop, MM::ActionType) {
@@ -618,6 +599,12 @@ namespace Prokyon {
             assert(m_discrete_set_properties.count(name));
             auto p = m_discrete_set_properties.at(name).get();
             p->set(v);
+        }
+
+        if (name == M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME) {
+            if (!m_p_image->update()) {
+                return DEVICE_ERR;
+            }
         }
 
         return DEVICE_OK;
@@ -759,4 +746,5 @@ namespace Prokyon {
     const std::string ProkyonCamera::M_S_CAMERA_DESCRIPTION{"Jenoptik Prokyon"};
     const std::string ProkyonCamera::M_S_IMAGE_MODE_NAME{"Image Mode"};
     const std::string ProkyonCamera::M_S_VIRTUAL_IMAGE_MODE_NAME{"Virtual Image Mode"};
+    const std::string ProkyonCamera::M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME{"Image Processing-Color Mode"};
 } // namespace Prokyon

@@ -101,6 +101,7 @@ namespace Prokyon {
         static const std::string M_S_CAMERA_DESCRIPTION;
         static const std::string M_S_IMAGE_MODE_NAME;
         static const std::string M_S_VIRTUAL_IMAGE_MODE_NAME;
+        static const std::string M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME;
         static const std::vector<unsigned char> M_S_TEST_IMAGE;
     };
 } // namespace Prokyon
