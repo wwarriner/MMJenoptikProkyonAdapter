@@ -126,7 +126,7 @@ namespace Prokyon {
             }
             case Camera::Status::failure:
             {
-                LogMessage(m_p_camera->get_error());
+                LogMessage(m_p_camera->to_string());
                 out = DEVICE_ERR;
                 break;
             }
@@ -158,7 +158,7 @@ namespace Prokyon {
             }
             case Camera::Status::failure:
             {
-                LogMessage(m_p_camera->get_error());
+                LogMessage(m_p_camera->to_string());
                 out = DEVICE_ERR;
                 break;
             }
