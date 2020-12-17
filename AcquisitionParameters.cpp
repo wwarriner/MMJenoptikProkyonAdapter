@@ -58,4 +58,13 @@ namespace Prokyon {
             assert(false);
         }
     }
+
+    std::string AcquisitionParameters::to_string() const {
+        std::stringstream ss;
+        ss << "Acquisition Parameters:\n";
+        ss << "  address: " << this << "\n";
+        ss << "  binning: " << get_binning() << "\n";
+        ss << "  exposure time (ms): " << get_exposure_ms() << "\n";
+        return ss.str();
+    }
 }

@@ -13,9 +13,13 @@ namespace Prokyon {
         AcquisitionParameters(Camera *p_camera);
 
         int get_binning() const;
+        // no set, hardware does not allow this directly
+        // please see Image Mode property in micromanager
 
         double get_exposure_ms() const;
         void set_exposure_ms(double exposure_ms);
+
+        std::string to_string() const;
 
     private:
         Camera *m_p_camera;
