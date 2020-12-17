@@ -14,19 +14,22 @@ namespace Prokyon {
     public:
         RegionOfInterest(Camera *p_camera);
 
-        virtual unsigned int x() const;
-        virtual unsigned int w() const;
-        virtual unsigned int x_end() const;
-        virtual unsigned int y() const;
-        virtual unsigned int h() const;
-        virtual unsigned int y_end() const;
+        unsigned int x() const;
+        unsigned int w() const;
+        unsigned int x_end() const;
+        unsigned int y() const;
+        unsigned int h() const;
+        unsigned int y_end() const;
 
-        virtual ROI get() const;
-        virtual void set(const ROI roi);
-        virtual void clear(); // sets to max size
+        ROI get() const;
+        void set(const ROI roi);
+        void clear(); // sets to max size
+
+        std::string to_string() const;
 
     private:
-        virtual ROI get_max() const;
+        ROI get_reset_roi() const;
+        ROI get_max() const;
 
         ROI m_roi;
         Camera *m_p_camera;

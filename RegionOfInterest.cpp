@@ -57,18 +57,29 @@ namespace Prokyon {
     }
 
     void RegionOfInterest::clear() {
-        auto max = get_max();
-        set(ROI{0, 0, max.at(W_ind), max.at(H_ind)});
+        set(get_reset_roi());
+    }
+
+    std::string RegionOfInterest::to_string() const {
+        std::stringstream ss;
+        ss << "Region of Interest (ROI) information:\n";
+        ss << "  current: " << x() << ", " << y() << ", " << h() << ", " << w() << "\n";
+        auto full = get_reset_roi();
+        ss << "  full: " << full[X_ind] << ", " << full[Y_ind] << ", " << full[H_ind] << ", " << full[W_ind] << "\n";
+        return ss.str();
     }
 
     // private
+    ROI RegionOfInterest::get_reset_roi() const {
+        auto max = get_max();
+        return {0, 0, max.at(W_ind), max.at(H_ind)};
+    }
+
     ROI RegionOfInterest::get_max() const {
         auto count = std::tuple_size<ROI>::value;
         assert(count < (std::numeric_limits<unsigned int>::max)());
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureRoi, static_cast<unsigned int>(count), DijSDK_EParamQueryMax);
-        if (p.error) {
-            // TODO handle error
-        }
+        if (p.error) { assert(false); }
         auto value = to_unsigned(p.value);
         return {value.at(X_ind), value.at(Y_ind), value.at(W_ind), value.at(H_ind)};
     }

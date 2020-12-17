@@ -78,10 +78,7 @@ namespace Prokyon {
 
                 LogMessage("creating roi");
                 m_p_roi = std::make_unique<RegionOfInterest>(m_p_camera.get());
-                ss.str("");
-                ss << "x: (" << m_p_roi->x() << ", " << m_p_roi->x_end() << ") w: " << m_p_roi->w() << std::endl;
-                ss << "y: (" << m_p_roi->y() << ", " << m_p_roi->y_end() << ") h: " << m_p_roi->h() << std::endl;
-                LogMessage(ss.str());
+                LogMessage(m_p_roi->to_string());
 
                 LogMessage("creating acquisition parameters");
                 m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get());
