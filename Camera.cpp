@@ -113,11 +113,14 @@ namespace Prokyon {
         return m_camera;
     }
 
-    std::string Camera::get_error() const {
-        return m_error;
-    }
-
-    std::string Camera::get_guid() const {
-        return m_guid;
+    std::string Camera::to_string() const {
+        std::stringstream ss;
+        ss << "Camera information:\n";
+        ss << "  address: " << this << "\n";
+        ss << "  underlying address: " << m_camera << "\n";
+        ss << "  guid: " << m_guid << "\n";
+        ss << "  is_ready: " << is_ready() << "\n";
+        ss << "  error state: " << m_error << "\n";
+        return ss.str();
     }
 }

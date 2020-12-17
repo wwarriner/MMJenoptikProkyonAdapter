@@ -28,8 +28,7 @@ namespace Prokyon {
         const CameraHandle &operator*() const;
         CameraHandle &operator*();
 
-        std::string get_error() const;
-        std::string get_guid() const;
+        std::string to_string() const;
 
     private:
         CameraHandle m_camera;

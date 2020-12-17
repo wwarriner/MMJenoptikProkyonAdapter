@@ -70,12 +70,7 @@ namespace Prokyon {
         switch (status) {
             case Camera::Status::state_changed:
             {
-                std::stringstream ss;
-                ss << "using camera:\n";
-                ss << "  " << m_p_camera.get() << "\n";
-                ss << "  " << m_p_camera->get_error() << "\n";
-                ss << "  " << m_p_camera->get_guid() << "\n";
-                LogMessage(ss.str());
+                LogMessage(m_p_camera->to_string());
 
                 LogMessage("creating image buffer");
                 m_p_image = std::make_unique<Image>(m_p_camera.get());
