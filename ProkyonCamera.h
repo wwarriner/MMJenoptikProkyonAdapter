@@ -71,17 +71,18 @@ namespace Prokyon {
         // special case for image mode index and virtual image mode index
         int update_image_mode_property(MM::PropertyBase *p_prop, MM::ActionType type);
 
-        std::vector<int> get_integer_value(MM::PropertyBase *p_prop, bool &success) const;
-        void set_integer_value(std::vector<int> values, MM::PropertyBase *p_prop);
-
-        std::vector<double> get_double_value(MM::PropertyBase *p_prop, bool &success) const;
-        void set_double_value(std::vector<double> v, MM::PropertyBase *p_prop);
-
         NumericProperty *get_numeric_property(MM::PropertyBase *p_prop);
         const NumericProperty *get_numeric_property(MM::PropertyBase *p_prop) const;
         StringProperty *get_string_property(MM::PropertyBase *p_prop);
         const StringProperty *get_string_property(MM::PropertyBase *p_prop) const;
         std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
+
+        template<typename T>
+        std::vector<T> get_numeric_value(MM::PropertyBase *p_prop, bool &success) const;
+        template<typename T>
+        void set_numeric_value(std::vector<T> values, MM::PropertyBase *p_prop);
+        template<typename T>
+        static T s_to_num(const std::string &s);
 
         void log_property_name(const std::string &name) const;
         int log_error(const char *func, const int line, const std::string &message = "") const;
@@ -105,5 +106,46 @@ namespace Prokyon {
         static const std::vector<unsigned char> M_S_TEST_IMAGE;
     };
 } // namespace Prokyon
+
+// template function definitions
+namespace Prokyon {
+    template<typename T>
+    std::vector<T> ProkyonCamera::get_numeric_value(MM::PropertyBase *p_prop, bool &success) const {
+        std::string v;
+        p_prop->Get(v);
+
+        // extract values
+        std::vector<T> values;
+        std::stringstream words(v);
+        const char token = get_numeric_property(p_prop)->delimiter();
+        std::string word;
+        while (std::getline(words, word, token)) {
+            word.erase(std::remove_if(word.begin(), word.end(), [](const char c) {return c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c == '\f'; }), word.end());
+            T current;
+            try {
+                current = s_to_num<T>(word);
+            }
+            catch (std::invalid_argument) {
+                success = false;
+            }
+            values.push_back(current);
+        }
+        success = true;
+
+        return values;
+    }
+
+    template<typename T>
+    void ProkyonCamera::set_numeric_value(std::vector<T> values, MM::PropertyBase *p_prop) {
+        std::stringstream ss;
+        for (auto i = 0; i < values.size(); ++i) {
+            if (0 < i) {
+                ss << get_numeric_property(p_prop)->readable_delimiter();
+            }
+            ss << values[i];
+        }
+        p_prop->Set(ss.str().c_str());
+    }
+}
 
 #endif

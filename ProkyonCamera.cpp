@@ -24,11 +24,7 @@
 
 // TODO
 // Need to fix a few errors:
-//  (1) can't do multi-d acq because "Color Mode" prop is not valid name?
-//  (2) can't convert string to java.awt.color?
-//  (3) can't find color property??
-//  (4) something generally wrong with color mode property...
-//  (5) document crash when trying to change color mode while live (shouldn't happen??)
+//  (1) document crash when trying to change color mode while live (shouldn't happen??)
 
 // ModuleInterface.h
 // Required for initialization and DLL export
@@ -106,7 +102,7 @@ namespace Prokyon {
                 setup_numeric_property(ParameterIdSensorSize, "ParameterIdSensorSize", "Sensor-Size (px)");
                 setup_numeric_property(ParameterIdSensorPixelSizeUm, "ParameterIdSensorPixelSizeUm", "Sensor-Pixel Size (um)");
                 setup_numeric_property(ParameterIdImageModeSubsampling, "ParameterIdImageModeSubsampling", "Image Mode-Subsampling Bin Size (px)");
-                setup_numeric_property(ParameterIdImageModeAveraging, "ParameterIdImageModeAveraging", "Image Mode-Averaging Bin Size (px)");
+                setup_numeric_property(ParameterIdImageModeAveraging, "ParameterIdImageModeAveraging", "Binning");
                 setup_numeric_property(ParameterIdImageModeSumming, "ParameterIdImageModeSumming", "Image Mode-Summing Bin Size (px)");
                 setup_string_property(ParameterIdGlobalSettingsCameraName, "ParameterIdGlobalSettingsCameraName", "Global-Camera Name");
                 // TODO better error checking
@@ -172,53 +168,25 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::GetProperty(const char *name, char *value) const {
-        LogMessage("getting property");
-        std::string name_in{name};
-        auto ret = DEVICE_ERR;
-        // HACK!
-        if (name_in == MM::g_Keyword_Binning) {
-            LogMessage("copying");
-            auto out = CDeviceUtils::ConvertToString(GetBinning());
-            CDeviceUtils::CopyLimitedString(value, out);
-            LogMessage("done!");
-            ret = DEVICE_OK;
-        }
-        else {
-            ret = CCameraBase<ProkyonCamera>::GetProperty(name, value);
-        }
+        auto ret = CCameraBase<ProkyonCamera>::GetProperty(name, value);
         if (ret == DEVICE_ERR) {
-            LogMessage("failed");
-            LogMessage(name);
-            LogMessage(value);
+            std::stringstream ss;
+            ss << "failed getting MM property:\n";
+            ss << "  name: " << name << "\n";
+            ss << "  value: " << value << "\n";
+            LogMessage(ss.str());
         }
         return ret;
     }
 
     int ProkyonCamera::SetProperty(const char *name, const char *value) {
-        LogMessage("setting property");
-        std::string name_in{name};
-        auto ret = DEVICE_ERR;
-        if (name_in == MM::g_Keyword_Binning) {
-            int value_in = GetBinning();
-            try {
-                value_in = std::stoi(value);
-            }
-            catch (std::invalid_argument e) {
-                // noop
-            }
-            catch (std::out_of_range e) {
-                // noop
-            }
-            SetBinning(value_in);
-            ret = DEVICE_OK;
-        }
-        else {
-            ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
-        }
+        auto ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
         if (ret == DEVICE_ERR) {
-            LogMessage("failed");
-            LogMessage(name);
-            LogMessage(value);
+            std::stringstream ss;
+            ss << "failed setting MM property:\n";
+            ss << "  name: " << name << "\n";
+            ss << "  value: " << value << "\n";
+            LogMessage(ss.str());
         }
         return ret;
     }
@@ -323,11 +291,11 @@ namespace Prokyon {
     }
 
     double ProkyonCamera::GetPixelSizeUm() const {
+        // TODO
         return 1.0;
     }
 
     int ProkyonCamera::GetBinning() const {
-        LogMessage("getting binning");
         if (m_p_acq_parameters == nullptr) {
             LogMessage("failed");
             return 1;
@@ -374,12 +342,7 @@ namespace Prokyon {
             std::stringstream ss;
             ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
             LogMessage(ss.str());
-            ROI roi;
-            roi.at(X_ind) = x;
-            roi.at(Y_ind) = y;
-            roi.at(W_ind) = xSize;
-            roi.at(H_ind) = ySize;
-            m_p_roi->set(roi);
+            m_p_roi->set({x, y, xSize, ySize});
             return DEVICE_OK;
         }
     }
@@ -521,14 +484,14 @@ namespace Prokyon {
             case(NumericProperty::Type::Int):
             {
                 bool success = false;
-                auto v = get_integer_value(p_prop, success);
+                auto v = get_numeric_value<int>(p_prop, success);
                 if (!success || v.size() != p->dimension() || !p->writeable()) {
-                    set_integer_value(p->get_int(), p_prop);
+                    set_numeric_value(p->get_int(), p_prop);
                     return DEVICE_OK;
                 }
                 else {
                     p->normalize_int(v);
-                    set_integer_value(v, p_prop);
+                    set_numeric_value(v, p_prop);
                     p->set(v);
                 }
                 break;
@@ -536,14 +499,14 @@ namespace Prokyon {
             case(NumericProperty::Type::Double):
             {
                 bool success = false;
-                auto v = get_double_value(p_prop, success);
+                auto v = get_numeric_value<double>(p_prop, success);
                 if (!success || v.size() != p->dimension() || !p->writeable()) {
-                    set_double_value(p->get_double(), p_prop);
+                    set_numeric_value(p->get_double(), p_prop);
                     return DEVICE_OK;
                 }
                 else {
                     p->normalize_double(v);
-                    set_double_value(v, p_prop);
+                    set_numeric_value(v, p_prop);
                     p->set(v);
                 }
                 break;
@@ -551,14 +514,12 @@ namespace Prokyon {
             default:
                 assert(false);
         }
-
         return DEVICE_OK;
     }
 
     int ProkyonCamera::update_string_property(MM::PropertyBase *p_prop, MM::ActionType) {
-        std::stringstream ss;
-        ss << "updating property " << p_prop->GetName();
-        LogMessage(ss.str());
+        auto name = get_mm_property_name(p_prop);
+        log_property_name(name);
 
         auto p = get_string_property(p_prop);
         p_prop->Set(p->get().c_str());
@@ -614,83 +575,10 @@ namespace Prokyon {
         p = m_discrete_set_properties.at(M_S_VIRTUAL_IMAGE_MODE_NAME).get();
         p->set(s);
 
+        if (!m_p_image->update()) {
+            return DEVICE_ERR;
+        }
         return DEVICE_OK;
-    }
-
-    std::vector<int> ProkyonCamera::get_integer_value(MM::PropertyBase *p_prop, bool &success) const {
-        std::string v;
-        p_prop->Get(v);
-
-        // extract values
-        std::vector<int> values;
-        std::stringstream words(v);
-        const char token = get_numeric_property(p_prop)->DELIMITER;
-        std::string word;
-        while (std::getline(words, word, token)) {
-            word.erase(std::remove_if(word.begin(), word.end(), [](const char c) {return c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c == '\f'; }), word.end());
-            int current;
-            try {
-                current = std::stoi(word);
-            }
-            catch (std::invalid_argument) {
-                success = false;
-            }
-            values.push_back(current);
-        }
-        success = true;
-
-        return values;
-    }
-
-    void ProkyonCamera::set_integer_value(std::vector<int> values, MM::PropertyBase *p_prop) {
-        // to string
-        std::stringstream ss;
-
-        for (auto i = 0; i < values.size(); ++i) {
-            if (0 < i) {
-                ss << " " << get_numeric_property(p_prop)->DELIMITER << " ";
-            }
-            ss << values[i];
-        }
-        p_prop->Set(ss.str().c_str());
-    }
-
-    std::vector<double> ProkyonCamera::get_double_value(MM::PropertyBase *p_prop, bool &success) const {
-        std::string v;
-        p_prop->Get(v);
-
-        // extract values
-        std::vector<double> values;
-        std::stringstream words(v);
-        const char token = get_numeric_property(p_prop)->DELIMITER;
-        std::string word;
-        while (std::getline(words, word, token)) {
-            word.erase(std::remove_if(word.begin(), word.end(), [](const char c) {return c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c == '\f'; }), word.end());
-            double current;
-            try {
-                current = std::stod(word);
-            }
-            catch (std::invalid_argument) {
-                success = false;
-            }
-            values.push_back(current);
-        }
-        success = true;
-
-        return values;
-    }
-
-    void ProkyonCamera::set_double_value(std::vector<double> values, MM::PropertyBase *p_prop) {
-        // to string
-        std::stringstream ss;
-        ss << std::setprecision(4);
-        for (auto i = 0; i < values.size(); ++i) {
-            if (0 < i) {
-                ss << " " << get_numeric_property(p_prop)->DELIMITER << " ";
-            }
-            ss << values[i];
-        }
-        p_prop->Set(ss.str().c_str());
     }
 
     NumericProperty *ProkyonCamera::get_numeric_property(MM::PropertyBase *p_prop) {
@@ -720,6 +608,16 @@ namespace Prokyon {
     std::string ProkyonCamera::get_mm_property_name(MM::PropertyBase *p_prop) const {
         auto name = p_prop->GetName();
         return name;
+    }
+
+    template<>
+    int ProkyonCamera::s_to_num<int>(const std::string &s) {
+        return std::stoi(s);
+    }
+
+    template<>
+    double ProkyonCamera::s_to_num<double>(const std::string &s) {
+        return std::stod(s);
     }
 
     void ProkyonCamera::log_property_name(const std::string &name) const {
