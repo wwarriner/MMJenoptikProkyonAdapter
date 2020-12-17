@@ -442,7 +442,7 @@ namespace Prokyon {
         LogMessage("setting up: " + id_name);
         auto p_property = std::make_unique<NumericProperty>(*m_p_camera, id);
         std::stringstream ss;
-        ss << id_name << " | " << p_property->short_specification_to_string();
+        ss << id_name << p_property->readable_delimiter() << p_property->short_specification_to_string();
         LogMessage(ss.str());
         auto p_callback = new CPropertyAction(this, &ProkyonCamera::update_numeric_property);
         this->CreateStringProperty(display_name.c_str(), p_property->vector_to_string().c_str(), !p_property->writeable(), p_callback, false);
@@ -453,7 +453,7 @@ namespace Prokyon {
         LogMessage("setting up: " + id_name);
         auto p_property = std::make_unique<BoolProperty>(*m_p_camera, id);
         std::stringstream ss;
-        ss << id_name << " | " << p_property->short_specification_to_string();
+        ss << id_name << p_property->readable_delimiter() << p_property->short_specification_to_string();
         LogMessage(ss.str());
         this->CreatePropertyWithHandler(display_name.c_str(), p_property->range()[0].c_str(), MM::PropertyType::String, !p_property->writeable(), &ProkyonCamera::update_bool_property, false);
         this->SetAllowedValues(display_name.c_str(), p_property->range());
@@ -464,7 +464,7 @@ namespace Prokyon {
         LogMessage("setting up: " + id_name);
         auto p_property = std::make_unique<StringProperty>(*m_p_camera, id);
         std::stringstream ss;
-        ss << id_name << " | " << "string";
+        ss << id_name << p_property->readable_delimiter() << "string";
         LogMessage(ss.str());
         auto p_callback = new CPropertyAction(this, &ProkyonCamera::update_string_property);
         this->CreateStringProperty(display_name.c_str(), p_property->get().c_str(), !p_property->writeable(), p_callback, false);

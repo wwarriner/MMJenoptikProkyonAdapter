@@ -43,8 +43,8 @@ namespace Prokyon {
         };
         Type type() const;
 
-        static const char DELIMITER = '|';
-        static const unsigned PRECISION = 4u;
+        char delimiter() const;
+        std::string readable_delimiter() const;
 
     protected:
         DijSDK_Handle &handle();
@@ -58,6 +58,9 @@ namespace Prokyon {
 
         template<typename T>
         static std::string value_range_to_string(std::vector<T> range);
+
+        static const char DELIMITER = '|';
+        static const unsigned PRECISION = 4u;
 
     private:
         std::string dimension_to_string() const;

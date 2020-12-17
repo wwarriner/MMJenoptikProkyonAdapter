@@ -98,6 +98,16 @@ namespace Prokyon {
         return out;
     }
 
+    char PropertyBase::delimiter() const {
+        return DELIMITER;
+    }
+
+    std::string PropertyBase::readable_delimiter() const {
+        std::stringstream ss;
+        ss << " " << delimiter() << " ";
+        return ss.str();
+    }
+
     DijSDK_Handle &PropertyBase::handle() {
         return m_handle;
     }
