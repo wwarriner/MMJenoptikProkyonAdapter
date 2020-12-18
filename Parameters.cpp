@@ -98,11 +98,11 @@ namespace Prokyon {
         return out;
     }
 
-    char PropertyBase::delimiter() const {
+    char PropertyBase::delimiter() {
         return DELIMITER;
     }
 
-    std::string PropertyBase::readable_delimiter() const {
+    std::string PropertyBase::readable_delimiter() {
         std::stringstream ss;
         ss << " " << delimiter() << " ";
         return ss.str();
@@ -227,16 +227,16 @@ namespace Prokyon {
         return range<double>();
     }
 
-    void NumericProperty::normalize_int(std::vector<int> &v) const {
+    void NumericProperty::clip_int(std::vector<int> &v) const {
         assert(exists());
         assert(type() == Type::Int);
-        normalize<int>(v);
+        clip<int>(v);
     }
 
-    void NumericProperty::normalize_double(std::vector<double> &v) const {
+    void NumericProperty::clip_double(std::vector<double> &v) const {
         assert(exists());
         assert(type() == Type::Double);
-        normalize<double>(v);
+        clip<double>(v);
     }
 
     bool NumericProperty::allowed_int(int value) const {
@@ -272,21 +272,7 @@ namespace Prokyon {
         return get<double>();
     }
 
-    void NumericProperty::set(const std::vector<int> &value) {
-        assert(exists());
-        assert(writeable());
-        assert(type() == Type::Int || type() == Type::Bool || type() == Type::Set);
-        set<int>(value);
-    }
-
-    void NumericProperty::set(const std::vector<double> &value) {
-        assert(exists());
-        assert(writeable());
-        assert(type() == Type::Double);
-        set<double>(value);
-    }
-
-    std::string NumericProperty::vector_to_string() const {
+    std::string NumericProperty::get_as_string() const {
         assert(exists());
         std::string out;
         switch (type()) {
@@ -300,6 +286,20 @@ namespace Prokyon {
                 assert(false);
         }
         return out;
+    }
+
+    void NumericProperty::set(const std::vector<int> &value) {
+        assert(exists());
+        assert(writeable());
+        assert(type() == Type::Int || type() == Type::Bool || type() == Type::Set);
+        set<int>(value);
+    }
+
+    void NumericProperty::set(const std::vector<double> &value) {
+        assert(exists());
+        assert(writeable());
+        assert(type() == Type::Double);
+        set<double>(value);
     }
 
     std::string NumericProperty::range_to_string() const {

@@ -5,7 +5,6 @@
 
 #include "MMDevice/DeviceBase.h"
 
-#include "CommonDef.h"
 #include "Parameters.h"
 
 #include <array>
@@ -23,7 +22,6 @@ namespace Prokyon {
 
     public:
         ProkyonCamera();
-        //~ProkyonCamera();
 
         // device
         int Initialize(); // done
@@ -63,6 +61,7 @@ namespace Prokyon {
         void setup_bool_property(DijSDK_EParamId id, std::string id_name, std::string display_name);
         void setup_string_property(DijSDK_EParamId id, std::string id_name, std::string display_name);
         void setup_image_mode_property();
+        bool check_property(PropertyBase *p_property, std::string id_name) const; // returns success
 
         int update_numeric_property(MM::PropertyBase *p_prop, MM::ActionType type);
         int update_bool_property(MM::PropertyBase *p_prop, MM::ActionType type);
@@ -70,11 +69,16 @@ namespace Prokyon {
         int update_discrete_set_property(MM::PropertyBase *p_prop, MM::ActionType type);
         // special case for image mode index and virtual image mode index
         int update_image_mode_property(MM::PropertyBase *p_prop, MM::ActionType type);
+        static std::string update_exception_msg(std::string id_name);
 
         NumericProperty *get_numeric_property(MM::PropertyBase *p_prop);
         const NumericProperty *get_numeric_property(MM::PropertyBase *p_prop) const;
+        BoolProperty *get_bool_property(MM::PropertyBase *p_prop);
+        const BoolProperty *get_bool_property(MM::PropertyBase *p_prop) const;
         StringProperty *get_string_property(MM::PropertyBase *p_prop);
         const StringProperty *get_string_property(MM::PropertyBase *p_prop) const;
+        DiscreteSetProperty *get_discrete_set_property(MM::PropertyBase *p_prop);
+        const DiscreteSetProperty *get_discrete_set_property(MM::PropertyBase *p_prop) const;
         std::string get_mm_property_name(MM::PropertyBase *p_prop) const;
 
         template<typename T>
@@ -85,7 +89,6 @@ namespace Prokyon {
         static T s_to_num(const std::string &s);
 
         void log_property_name(const std::string &name) const;
-        int log_error(const char *func, const int line, const std::string &message = "") const;
 
         std::unique_ptr<Camera> m_p_camera;
         std::unique_ptr<Image> m_p_image;
@@ -103,6 +106,7 @@ namespace Prokyon {
         static const std::string M_S_IMAGE_MODE_NAME;
         static const std::string M_S_VIRTUAL_IMAGE_MODE_NAME;
         static const std::string M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME;
+        static const std::string M_S_BINNING_NAME;
         static const std::vector<unsigned char> M_S_TEST_IMAGE;
     };
 } // namespace Prokyon
@@ -117,7 +121,7 @@ namespace Prokyon {
         // extract values
         std::vector<T> values;
         std::stringstream words(v);
-        const char token = get_numeric_property(p_prop)->delimiter();
+        const char token = PropertyBase::delimiter();
         std::string word;
         while (std::getline(words, word, token)) {
             word.erase(std::remove_if(word.begin(), word.end(), [](const char c) {return c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c == '\f'; }), word.end());
@@ -140,7 +144,7 @@ namespace Prokyon {
         std::stringstream ss;
         for (auto i = 0; i < values.size(); ++i) {
             if (0 < i) {
-                ss << get_numeric_property(p_prop)->readable_delimiter();
+                ss << PropertyBase::readable_delimiter();
             }
             ss << values[i];
         }

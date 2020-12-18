@@ -7,31 +7,33 @@
 #include "parameterif.h"
 
 #include <cassert>
-#include <string>
-#include <vector>
-#include <utility>
-#include <set>
-#include <map>
+#include <exception>
 #include <iomanip>
-#include <sstream>
 #include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 using DijSDK_Handle = void *;
 using error_t = int;
 
 namespace Prokyon {
+    class PropertyException;
+
     class PropertyBase {
     public:
         PropertyBase(DijSDK_Handle handle, DijSDK_EParamId id);
 
         bool exists() const;
 
-        unsigned dimension() const;
-        bool writeable() const;
-        bool is_discrete() const;
+        unsigned dimension() const; // throws PropertyException
+        bool writeable() const; // throws PropertyException
+        bool is_discrete() const; // throws PropertyException
 
-        std::string short_specification_to_string() const;
-        std::string specification_to_string() const;
+        std::string short_specification_to_string() const; // throws PropertyException
+        std::string specification_to_string() const; // throws PropertyException
 
         enum class Type {
             Unspecified = 0,
@@ -41,10 +43,10 @@ namespace Prokyon {
             String = 4,
             Set = 5,
         };
-        Type type() const;
+        Type type() const; // throws PropertyException
 
-        char delimiter() const;
-        std::string readable_delimiter() const;
+        static char delimiter();
+        static std::string readable_delimiter();
 
     protected:
         DijSDK_Handle &handle();
@@ -109,7 +111,7 @@ namespace Prokyon {
     class StringProperty : public PropertyBase {
     public:
         StringProperty(DijSDK_Handle handle, DijSDK_EParamId id);
-        std::string get() const;
+        std::string get() const; // throws PropertyException
         // no set because no useful read-only properties at this time
 
     protected:
@@ -120,22 +122,22 @@ namespace Prokyon {
     public:
         NumericProperty(DijSDK_Handle handle, DijSDK_EParamId id);
 
-        std::vector<int> range_int() const;
-        std::vector<double> range_double() const;
+        std::vector<int> range_int() const; // throws PropertyException
+        std::vector<double> range_double() const; // throws PropertyException
 
-        void normalize_int(std::vector<int> &v) const;
-        void normalize_double(std::vector<double> &v) const;
+        // TODO change to clip_*
+        void clip_int(std::vector<int> &v) const; // throws PropertyException
+        void clip_double(std::vector<double> &v) const; // throws PropertyException
 
-        bool allowed_int(int value) const;
-        bool allowed_double(double value) const;
+        bool allowed_int(int value) const; // throws PropertyException
+        bool allowed_double(double value) const; // throws PropertyException
 
-        std::vector<int> get_int() const;
-        std::vector<double> get_double() const;
+        std::vector<int> get_int() const; // throws PropertyException
+        std::vector<double> get_double() const; // throws PropertyException
+        std::string get_as_string() const; // throws PropertyException
 
-        void set(const std::vector<int> &value);
-        void set(const std::vector<double> &value);
-
-        std::string vector_to_string() const;
+        void set(const std::vector<int> &value); // throws PropertyException
+        void set(const std::vector<double> &value); // throws PropertyException
 
     protected:
         virtual std::string range_to_string() const;
@@ -144,9 +146,9 @@ namespace Prokyon {
         template<typename T>
         std::vector<T> range() const;
         template<typename T>
-        void normalize(T &v) const;
+        void clip(T &v) const;
         template<typename T>
-        void normalize(std::vector<T> &v) const;
+        void clip(std::vector<T> &v) const;
         template<typename T>
         bool allowed(const T value) const;
         template<typename T>
@@ -159,11 +161,11 @@ namespace Prokyon {
     public:
         DiscreteSetProperty(DijSDK_Handle handle, DijSDK_EParamId id, std::map<std::string, int> forward, bool pseudo_mapped = false);
 
-        std::vector<std::string> &range();
-        const std::vector<std::string> &range() const;
+        std::vector<std::string> &range(); // throws PropertyException
+        const std::vector<std::string> &range() const; // throws PropertyException
 
-        std::string get() const;
-        void set(const std::string &value);
+        std::string get() const; // throws PropertyException
+        void set(const std::string &value); // throws PropertyException
 
     protected:
         virtual std::string range_to_string() const;
@@ -184,6 +186,8 @@ namespace Prokyon {
         BoolProperty(DijSDK_Handle handle, DijSDK_EParamId id);
     };
 
+    class PropertyException : public std::exception {};
+
     template<typename T>
     struct NumericParameter {
         std::vector<T> value;
@@ -203,17 +207,9 @@ namespace Prokyon {
     // private
     template<typename T>
     error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, T *pValue, unsigned int num, DijSDK_EParamQuery query = DijSDK_EParamQueryCurrent);
-    template<>
-    error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num, DijSDK_EParamQuery query);
-    template<>
-    error_t get_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, double *pValue, unsigned int num, DijSDK_EParamQuery query);
 
     template<typename T>
     error_t set_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, T *pValue, unsigned int num);
-    template<>
-    error_t set_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, int *pValue, unsigned int num);
-    template<>
-    error_t set_numeric_sdk_parameter(DijSDK_Handle handle, DijSDK_EParamId paramId, double *pValue, unsigned int num);
 
     typename std::make_unsigned<int>::type to_unsigned(const int signed_value);
     std::vector<typename std::make_unsigned<int>::type> to_unsigned(const std::vector<int> &signed_value);
@@ -239,16 +235,16 @@ namespace Prokyon {
     }
 
     template<typename T>
-    void NumericProperty::normalize(T &v) const {
+    void NumericProperty::clip(T &v) const {
         auto r = range<T>();
         if (v < r[0]) { v = r[0]; }
         if (r[1] < v) { v = r[1]; }
     }
 
     template<typename T>
-    void NumericProperty::normalize(std::vector<T> &v) const {
+    void NumericProperty::clip(std::vector<T> &v) const {
         for (auto i = 0; i < v.size(); ++i) {
-            normalize<T>(v[i]);
+            clip<T>(v[i]);
         }
     }
 

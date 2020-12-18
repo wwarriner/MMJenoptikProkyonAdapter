@@ -70,16 +70,29 @@ namespace Prokyon {
 
                 LogMessage("creating image buffer");
                 m_p_image = std::make_unique<Image>(m_p_camera.get());
-                LogMessage(m_p_image->to_string());
+                try { LogMessage(m_p_image->to_string()); }
+                catch (ImageException) {
+                    LogMessage("exception creating image object");
+                    return DEVICE_ERR;
+                }
 
                 LogMessage("creating roi");
                 m_p_roi = std::make_unique<RegionOfInterest>(m_p_camera.get());
-                LogMessage(m_p_roi->to_string());
+                try { LogMessage(m_p_roi->to_string()); }
+                catch (RegionOfInterestException) {
+                    LogMessage("exception creating roi object");
+                    return DEVICE_ERR;
+                }
 
                 LogMessage("creating acquisition parameters");
                 m_p_acq_parameters = std::make_unique<AcquisitionParameters>(m_p_camera.get());
-                LogMessage("initialized!");
+                try { LogMessage("initialized!"); }
+                catch (AcquisitionParametersException) {
+                    LogMessage("exception creating acquisition parameters object");
+                    return DEVICE_ERR;
+                }
 
+                // TODO error handling for setup of props
                 LogMessage("setting properties");
 
                 // special cases
@@ -102,7 +115,7 @@ namespace Prokyon {
                 setup_numeric_property(ParameterIdSensorSize, "ParameterIdSensorSize", "Sensor-Size (px)");
                 setup_numeric_property(ParameterIdSensorPixelSizeUm, "ParameterIdSensorPixelSizeUm", "Sensor-Pixel Size (um)");
                 setup_numeric_property(ParameterIdImageModeSubsampling, "ParameterIdImageModeSubsampling", "Image Mode-Subsampling Bin Size (px)");
-                setup_numeric_property(ParameterIdImageModeAveraging, "ParameterIdImageModeAveraging", "Binning");
+                setup_numeric_property(ParameterIdImageModeAveraging, "ParameterIdImageModeAveraging", M_S_BINNING_NAME);
                 setup_numeric_property(ParameterIdImageModeSumming, "ParameterIdImageModeSumming", "Image Mode-Summing Bin Size (px)");
                 setup_string_property(ParameterIdGlobalSettingsCameraName, "ParameterIdGlobalSettingsCameraName", "Global-Camera Name");
                 // TODO better error checking
@@ -180,7 +193,15 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::SetProperty(const char *name, const char *value) {
-        auto ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
+        // TODO FIGURE OUT A WAY TO REVERT TO OLD PROPERTY IF BINNING
+        int ret = DEVICE_ERR;
+        if (std::string{name} == M_S_BINNING_NAME) {
+            // noop
+        }
+        else {
+            ret = CCameraBase<ProkyonCamera>::SetProperty(name, value);
+        }
+
         if (ret == DEVICE_ERR) {
             std::stringstream ss;
             ss << "failed setting MM property:\n";
@@ -193,19 +214,19 @@ namespace Prokyon {
 
     // CameraBase
     int ProkyonCamera::SnapImage() {
-        LogMessage("snapping image");
+        //LogMessage("snapping image");
         auto success = m_p_image->acquire();
         if (!success) {
             return DEVICE_ERR;
         }
         else {
-            LogMessage(m_p_image->to_string());
+            //LogMessage(m_p_image->to_string());
         }
         return DEVICE_OK;
     }
 
     const unsigned char *ProkyonCamera::GetImageBuffer() {
-        LogMessage("getting image buffer");
+        //LogMessage("getting image buffer");
         if (m_p_image != nullptr) {
             return m_p_image->get_image_buffer();
         }
@@ -215,13 +236,13 @@ namespace Prokyon {
     }
 
     unsigned ProkyonCamera::GetNumberOfComponents() const {
-        LogMessage("getting number of components");
+        //LogMessage("getting number of components");
         assert(m_p_image != nullptr);
         return m_p_image->get_number_of_components();
     }
 
     int ProkyonCamera::GetComponentName(unsigned component, char *name) {
-        LogMessage("getting component name");
+        //LogMessage("getting component name");
         if (component > GetNumberOfComponents()) {
             LogMessage("failed");
             return DEVICE_NONEXISTENT_CHANNEL;
@@ -238,7 +259,7 @@ namespace Prokyon {
     }
 
     long ProkyonCamera::GetImageBufferSize() const {
-        LogMessage("getting image buffer size");
+        //LogMessage("getting image buffer size");
         if (m_p_image == nullptr) {
             LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
@@ -247,7 +268,7 @@ namespace Prokyon {
     }
 
     unsigned ProkyonCamera::GetImageWidth() const {
-        LogMessage("getting image buffer width");
+        //LogMessage("getting image buffer width");
         if (m_p_image == nullptr) {
             LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
@@ -258,7 +279,7 @@ namespace Prokyon {
     }
 
     unsigned ProkyonCamera::GetImageHeight() const {
-        LogMessage("getting image buffer height");
+        //LogMessage("getting image buffer height");
         if (m_p_image == nullptr) {
             LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
@@ -269,7 +290,7 @@ namespace Prokyon {
     }
 
     unsigned ProkyonCamera::GetImageBytesPerPixel() const {
-        LogMessage("getting image bytes per pixel");
+        //LogMessage("getting image bytes per pixel");
         if (m_p_image == nullptr) {
             LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
@@ -280,7 +301,7 @@ namespace Prokyon {
     }
 
     unsigned ProkyonCamera::GetBitDepth() const {
-        LogMessage("getting bit depth");
+        //LogMessage("getting bit depth");
         if (m_p_image == nullptr) {
             LogMessage("failed");
             return DEVICE_NOT_CONNECTED;
@@ -296,61 +317,59 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::GetBinning() const {
-        if (m_p_acq_parameters == nullptr) {
-            LogMessage("failed");
-            return 1;
-        }
+        int out = 1;
+        if (m_p_acq_parameters == nullptr) { LogMessage("nullptr getting binning"); }
         else {
-            return m_p_acq_parameters->get_binning();
+            try { out = m_p_acq_parameters->get_binning(); }
+            catch (AcquisitionParametersException) { LogMessage("exception getting binning"); }
         }
+        return out;
     }
 
     int ProkyonCamera::SetBinning(int) {
-        LogMessage("binning may not be set directly, choose via imaging mode");
+        LogMessage("hardware forbids setting binning directly, ignoring request, see Image Mode property");
         return DEVICE_OK;
     }
 
     void ProkyonCamera::SetExposure(double exp_ms) {
-        LogMessage("setting exposure");
-        if (m_p_acq_parameters == nullptr) {
-            LogMessage("failed");
-            // noop
-        }
+        if (m_p_acq_parameters == nullptr) { LogMessage("nullptr setting exposure"); }
         else {
-            m_p_acq_parameters->set_exposure_ms(exp_ms);
+            try { m_p_acq_parameters->set_exposure_ms(exp_ms); }
+            catch (AcquisitionParametersException) { LogMessage("exception setting exposure"); }
         }
     }
 
     double ProkyonCamera::GetExposure() const {
-        LogMessage("getting exposure");
-        if (m_p_acq_parameters == nullptr) {
-            LogMessage("failed");
-            return 0.0;
-        }
+        double out = 0.0;
+        if (m_p_acq_parameters == nullptr) { LogMessage("nullptr getting exposure"); }
         else {
-            return m_p_acq_parameters->get_exposure_ms();
+            try { out = m_p_acq_parameters->get_exposure_ms(); }
+            catch (AcquisitionParametersException) { LogMessage("exception getting exposure"); }
         }
+        return out;
     }
 
     int ProkyonCamera::SetROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) {
-        LogMessage("setting roi");
+        std::stringstream ss;
+        ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
+        LogMessage(ss.str());
         if (m_p_roi == nullptr) {
-            LogMessage("failed");
+            LogMessage("nullptr setting roi");
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            std::stringstream ss;
-            ss << "(" << x << ", " << y << ", " << xSize << ", " << ySize << ")" << std::endl;
-            LogMessage(ss.str());
-            m_p_roi->set({x, y, xSize, ySize});
+            try { m_p_roi->set({x, y, xSize, ySize}); }
+            catch (RegionOfInterestException) {
+                LogMessage("exception setting roi");
+                return DEVICE_CAN_NOT_SET_PROPERTY;
+            }
             return DEVICE_OK;
         }
     }
 
     int ProkyonCamera::GetROI(unsigned &x, unsigned &y, unsigned &xSize, unsigned &ySize) {
-        LogMessage("getting roi");
         if (m_p_roi == nullptr) {
-            LogMessage("failed");
+            LogMessage("nullptr getting roi");
             return DEVICE_NOT_CONNECTED;
         }
         else {
@@ -366,13 +385,16 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::ClearROI() {
-        LogMessage("clearing roi");
         if (m_p_roi == nullptr) {
-            LogMessage("failed");
+            LogMessage("nullptr clearing roi");
             return DEVICE_NOT_CONNECTED;
         }
         else {
-            m_p_roi->clear();
+            try { m_p_roi->clear(); }
+            catch (RegionOfInterestException) {
+                LogMessage("exception clearing roi");
+                return DEVICE_CAN_NOT_SET_PROPERTY;
+            }
             return DEVICE_OK;
         }
     }
@@ -402,33 +424,30 @@ namespace Prokyon {
 
     // private
     void ProkyonCamera::setup_numeric_property(DijSDK_EParamId id, std::string id_name, std::string display_name) {
-        LogMessage("setting up: " + id_name);
         auto p_property = std::make_unique<NumericProperty>(*m_p_camera, id);
-        std::stringstream ss;
-        ss << id_name << p_property->readable_delimiter() << p_property->short_specification_to_string();
-        LogMessage(ss.str());
+        if (!check_property(p_property.get(), id_name)) {
+            return;
+        }
         auto p_callback = new CPropertyAction(this, &ProkyonCamera::update_numeric_property);
-        this->CreateStringProperty(display_name.c_str(), p_property->vector_to_string().c_str(), !p_property->writeable(), p_callback, false);
+        this->CreateStringProperty(display_name.c_str(), p_property->get_as_string().c_str(), !p_property->writeable(), p_callback, false);
         m_numeric_properties[display_name] = std::move(p_property);
     }
 
     void ProkyonCamera::setup_bool_property(DijSDK_EParamId id, std::string id_name, std::string display_name) {
-        LogMessage("setting up: " + id_name);
         auto p_property = std::make_unique<BoolProperty>(*m_p_camera, id);
-        std::stringstream ss;
-        ss << id_name << p_property->readable_delimiter() << p_property->short_specification_to_string();
-        LogMessage(ss.str());
+        if (!check_property(p_property.get(), id_name)) {
+            return;
+        }
         this->CreatePropertyWithHandler(display_name.c_str(), p_property->range()[0].c_str(), MM::PropertyType::String, !p_property->writeable(), &ProkyonCamera::update_bool_property, false);
         this->SetAllowedValues(display_name.c_str(), p_property->range());
         m_bool_properties[display_name] = std::move(p_property);
     }
 
     void ProkyonCamera::setup_string_property(DijSDK_EParamId id, std::string id_name, std::string display_name) {
-        LogMessage("setting up: " + id_name);
         auto p_property = std::make_unique<StringProperty>(*m_p_camera, id);
-        std::stringstream ss;
-        ss << id_name << p_property->readable_delimiter() << "string";
-        LogMessage(ss.str());
+        if (!check_property(p_property.get(), id_name)) {
+            return;
+        }
         auto p_callback = new CPropertyAction(this, &ProkyonCamera::update_string_property);
         this->CreateStringProperty(display_name.c_str(), p_property->get().c_str(), !p_property->writeable(), p_callback, false);
         m_string_properties[display_name] = std::move(p_property);
@@ -475,44 +494,67 @@ namespace Prokyon {
         m_discrete_set_properties[M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME] = std::move(p_output_format);
     }
 
+    bool ProkyonCamera::check_property(PropertyBase *p_property, std::string id_name) const {
+        auto exists = p_property->exists();
+        std::string status;
+        if (!exists) {
+            status = "property " + id_name + " does not exist";
+        }
+        else {
+            std::stringstream ss;
+            ss << id_name << p_property->readable_delimiter() << p_property->short_specification_to_string();
+            status = ss.str();
+        }
+        LogMessage(status);
+        return exists;
+    }
+
     int ProkyonCamera::update_numeric_property(MM::PropertyBase *p_prop, MM::ActionType) {
+        // TODO untangle spaghetti
+        auto name = get_mm_property_name(p_prop);
+        log_property_name(name);
+
         auto p = get_numeric_property(p_prop);
-        std::stringstream ss;
-        ss << "updating property " << p_prop->GetName();
-        LogMessage(ss.str());
-        switch (p->type()) {
-            case(NumericProperty::Type::Int):
-            {
-                bool success = false;
-                auto v = get_numeric_value<int>(p_prop, success);
-                if (!success || v.size() != p->dimension() || !p->writeable()) {
-                    set_numeric_value(p->get_int(), p_prop);
-                    return DEVICE_OK;
+        bool success = false;
+        unsigned dimension = 0;
+        bool writeable = false;
+        try {
+            dimension = p->dimension();
+            writeable = p->writeable();
+            switch (p->type()) {
+                case(NumericProperty::Type::Int):
+                {
+                    auto v = get_numeric_value<int>(p_prop, success);
+                    if (!success || v.size() != dimension || !writeable) {
+                        set_numeric_value(p->get_int(), p_prop);
+                    }
+                    else {
+                        p->clip_int(v);
+                        p->set(v);
+                        set_numeric_value(v, p_prop);
+                    }
+                    break;
                 }
-                else {
-                    p->normalize_int(v);
-                    set_numeric_value(v, p_prop);
-                    p->set(v);
+                case(NumericProperty::Type::Double):
+                {
+                    auto v = get_numeric_value<double>(p_prop, success);
+                    if (!success || v.size() != dimension || !writeable) {
+                        set_numeric_value(p->get_double(), p_prop);
+                    }
+                    else {
+                        p->clip_double(v);
+                        p->set(v);
+                        set_numeric_value(v, p_prop);
+                    }
+                    break;
                 }
-                break;
+                default:
+                    assert(false);
             }
-            case(NumericProperty::Type::Double):
-            {
-                bool success = false;
-                auto v = get_numeric_value<double>(p_prop, success);
-                if (!success || v.size() != p->dimension() || !p->writeable()) {
-                    set_numeric_value(p->get_double(), p_prop);
-                    return DEVICE_OK;
-                }
-                else {
-                    p->normalize_double(v);
-                    set_numeric_value(v, p_prop);
-                    p->set(v);
-                }
-                break;
-            }
-            default:
-                assert(false);
+        }
+        catch (PropertyException) {
+            LogMessage(update_exception_msg(name));
+            return DEVICE_ERR;
         }
         return DEVICE_OK;
     }
@@ -522,7 +564,13 @@ namespace Prokyon {
         log_property_name(name);
 
         auto p = get_string_property(p_prop);
-        p_prop->Set(p->get().c_str());
+        try {
+            p_prop->Set(p->get().c_str());
+        }
+        catch (PropertyException) {
+            LogMessage(update_exception_msg(name));
+            return DEVICE_ERR;
+        }
         return DEVICE_OK;
     }
 
@@ -530,11 +578,16 @@ namespace Prokyon {
         auto name = get_mm_property_name(p_prop);
         log_property_name(name);
 
-        std::string v;
-        p_prop->Get(v);
-        assert(m_bool_properties.count(name));
-        auto p = m_bool_properties.at(name).get();
-        p->set(v);
+        try {
+            std::string v;
+            p_prop->Get(v);
+            auto p = get_bool_property(p_prop);
+            p->set(v);
+        }
+        catch (PropertyException) {
+            LogMessage(update_exception_msg(name));
+            return DEVICE_ERR;
+        }
         return DEVICE_OK;
     }
 
@@ -546,12 +599,16 @@ namespace Prokyon {
             update_image_mode_property(p_prop, type);
         }
         else {
-            std::string v;
-            p_prop->Get(v);
-
-            assert(m_discrete_set_properties.count(name));
-            auto p = m_discrete_set_properties.at(name).get();
-            p->set(v);
+            try {
+                std::string v;
+                p_prop->Get(v);
+                auto p = get_discrete_set_property(p_prop);
+                p->set(v);
+            }
+            catch (PropertyException) {
+                LogMessage(update_exception_msg(name));
+                return DEVICE_ERR;
+            }
         }
 
         if (name == M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME) {
@@ -564,21 +621,32 @@ namespace Prokyon {
     }
 
     int ProkyonCamera::update_image_mode_property(MM::PropertyBase *p_prop, MM::ActionType) {
+        auto name = get_mm_property_name(p_prop);
         std::string s;
         p_prop->Get(s);
 
         assert(m_discrete_set_properties.count(M_S_IMAGE_MODE_NAME));
         assert(m_discrete_set_properties.count(M_S_VIRTUAL_IMAGE_MODE_NAME));
 
-        auto p = m_discrete_set_properties.at(M_S_IMAGE_MODE_NAME).get();
-        p->set(s);
-        p = m_discrete_set_properties.at(M_S_VIRTUAL_IMAGE_MODE_NAME).get();
-        p->set(s);
+        try {
+            auto p = m_discrete_set_properties.at(M_S_IMAGE_MODE_NAME).get();
+            p->set(s);
+            p = m_discrete_set_properties.at(M_S_VIRTUAL_IMAGE_MODE_NAME).get();
+            p->set(s);
+        }
+        catch (PropertyException) {
+            LogMessage(update_exception_msg(name));
+            return DEVICE_ERR;
+        }
 
         if (!m_p_image->update()) {
             return DEVICE_ERR;
         }
         return DEVICE_OK;
+    }
+
+    std::string ProkyonCamera::update_exception_msg(std::string name) {
+        return "exception updating property " + name;
     }
 
     NumericProperty *ProkyonCamera::get_numeric_property(MM::PropertyBase *p_prop) {
@@ -593,6 +661,18 @@ namespace Prokyon {
         return m_numeric_properties.at(name).get();
     }
 
+    BoolProperty *ProkyonCamera::get_bool_property(MM::PropertyBase *p_prop) {
+        auto name = get_mm_property_name(p_prop);
+        assert(m_bool_properties.count(name));
+        return m_bool_properties.at(name).get();
+    }
+
+    const BoolProperty *ProkyonCamera::get_bool_property(MM::PropertyBase *p_prop) const {
+        auto name = get_mm_property_name(p_prop);
+        assert(m_bool_properties.count(name));
+        return m_bool_properties.at(name).get();
+    }
+
     StringProperty *ProkyonCamera::get_string_property(MM::PropertyBase *p_prop) {
         auto name = get_mm_property_name(p_prop);
         assert(m_string_properties.count(name));
@@ -603,6 +683,18 @@ namespace Prokyon {
         auto name = get_mm_property_name(p_prop);
         assert(m_string_properties.count(name));
         return m_string_properties.at(name).get();
+    }
+
+    DiscreteSetProperty *ProkyonCamera::get_discrete_set_property(MM::PropertyBase *p_prop) {
+        auto name = get_mm_property_name(p_prop);
+        assert(m_discrete_set_properties.count(name));
+        return m_discrete_set_properties.at(name).get();
+    }
+
+    const DiscreteSetProperty *ProkyonCamera::get_discrete_set_property(MM::PropertyBase *p_prop) const {
+        auto name = get_mm_property_name(p_prop);
+        assert(m_discrete_set_properties.count(name));
+        return m_discrete_set_properties.at(name).get();
     }
 
     std::string ProkyonCamera::get_mm_property_name(MM::PropertyBase *p_prop) const {
@@ -626,15 +718,11 @@ namespace Prokyon {
         LogMessage(ss.str());
     }
 
-    int ProkyonCamera::log_error(const char *func, const int line, const std::string &message) const {
-        LogMessage(format_error(func, line, message), true);
-        return DEVICE_ERR;
-    }
-
     const DijSDK_CameraKey ProkyonCamera::M_S_KEY{"C941DD58617B5CA774BF12B70452BF23"};
     const std::string ProkyonCamera::M_S_CAMERA_NAME{"Prokyon"};
     const std::string ProkyonCamera::M_S_CAMERA_DESCRIPTION{"Jenoptik Prokyon"};
     const std::string ProkyonCamera::M_S_IMAGE_MODE_NAME{"Image Mode"};
     const std::string ProkyonCamera::M_S_VIRTUAL_IMAGE_MODE_NAME{"Virtual Image Mode"};
     const std::string ProkyonCamera::M_S_IMAGE_PROCESSING_OUTPUT_FORMAT_NAME{"Image Processing-Color Mode"};
+    const std::string ProkyonCamera::M_S_BINNING_NAME{MM::g_Keyword_Binning};
 } // namespace Prokyon
