@@ -150,7 +150,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="CommonDef.cpp" />
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="Parameters.cpp" />
     <ClCompile Include="ProkyonCamera.cpp" />
@@ -160,7 +159,6 @@
   <ItemGroup>
     <ClInclude Include="AcquisitionParameters.h" />
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="CommonDef.h" />
     <ClInclude Include="dijsdk.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClInclude>
