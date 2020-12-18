@@ -13,21 +13,17 @@ namespace Prokyon {
 
     int AcquisitionParameters::get_binning() const {
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeAveraging, 1);
-        if (p.error) {
-            // TODO handle error
-            assert(false);
-        }
+        if (p.error) { throw AcquisitionParametersException(); }
         return p.value.at(0);
     }
 
     double AcquisitionParameters::get_exposure_ms() const {
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, 1);
-        if (p.error) {
-            // TODO handle error
-            assert(false);
-        }
+        if (p.error) { throw AcquisitionParametersException(); }
         auto exposure_us = p.value.at(0);
-        return exposure_us / 1000.0;
+        auto exposure_ms = exposure_us / 1000.0;
+        assert(0.0 < exposure_ms);
+        return exposure_ms;
     }
 
     void AcquisitionParameters::set_exposure_ms(double exposure_ms) {
@@ -39,24 +35,27 @@ namespace Prokyon {
         }
         int exposure_us = static_cast<int>(std::round(exposure_us_raw));
 
-        // check hardware limits
+        // check and clip to hardware limits
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, 1, DijSDK_EParamQueryMax);
-        if (p.error) {
-            // TODO handle error
-            assert(false);
-        }
+        if (p.error) { throw AcquisitionParametersException(); }
         auto max = p.value.at(0);
-        if (exposure_us < 1) {
-            exposure_us = 1;
+
+        p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, 1, DijSDK_EParamQueryMin);
+        if (p.error) { throw AcquisitionParametersException(); }
+        auto min = p.value.at(0);
+
+        assert(min <= max);
+
+        if (exposure_us < min) {
+            exposure_us = min;
         }
-        else if (max < exposure_us) {
+        if (max < exposure_us) {
             exposure_us = max;
         }
+
+        // set hardware value
         auto result = set_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureExposureTimeUsec, std::vector<int>{exposure_us});
-        if (result) {
-            // TODO handle error
-            assert(false);
-        }
+        if (result) { throw AcquisitionParametersException(); }
     }
 
     std::string AcquisitionParameters::to_string() const {
