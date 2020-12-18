@@ -50,10 +50,16 @@ namespace Prokyon {
         }
         std::vector<int> value(roi.cbegin(), roi.cend());
         auto result = set_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureRoi, value);
-        if (result) {
-            // TODO handle error
-        }
-        m_roi = roi;
+        if (result) { throw RegionOfInterestException(); }
+
+        // make sure cached value reflects hardware state
+        auto count = std::tuple_size<ROI>::value;
+        assert(count < (std::numeric_limits<unsigned int>::max)());
+        auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureRoi, static_cast<unsigned int>(count));
+        if (p.error) { throw RegionOfInterestException(); }
+        assert(p.value.size() == count);
+        auto out = to_unsigned(p.value);
+        m_roi = ROI{out[0], out[1], out[2], out[3]};
     }
 
     void RegionOfInterest::clear() {
@@ -79,7 +85,7 @@ namespace Prokyon {
         auto count = std::tuple_size<ROI>::value;
         assert(count < (std::numeric_limits<unsigned int>::max)());
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageCaptureRoi, static_cast<unsigned int>(count), DijSDK_EParamQueryMax);
-        if (p.error) { assert(false); }
+        if (p.error) { throw RegionOfInterestException(); }
         auto value = to_unsigned(p.value);
         return {value.at(X_ind), value.at(Y_ind), value.at(W_ind), value.at(H_ind)};
     }
