@@ -3,16 +3,20 @@
 #ifndef PROKYON_IMAGE_H_
 #define PROKYON_IMAGE_H_
 
-#include "CommonDef.h"
-
+#include <array>
+#include <exception>
 #include <map>
 #include <string>
 #include <vector>
-#include <exception>
+
+using DijSDK_Handle = void *;
 
 namespace Prokyon {
     class Camera;
     class ProkyonException;
+
+    using ImageHandle = DijSDK_Handle;
+    using ImageBuffer = const unsigned char *;
 
     class Image {
     public:
@@ -72,7 +76,7 @@ namespace Prokyon {
         static const unsigned Y_ind = 1u;
     };
 
-    class ProkyonException : public std::exception {};
+    class ImageException : public std::exception {};
 }
 
 #endif

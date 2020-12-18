@@ -40,7 +40,7 @@ namespace Prokyon {
         try {
             copy_image_data(p_raw_data);
         }
-        catch (ProkyonException) {
+        catch (ImageException) {
             return false;
         }
 
@@ -61,7 +61,7 @@ namespace Prokyon {
                 select_component_name_map(extract_component_count())
             );
         }
-        catch (ProkyonException) {
+        catch (ImageException) {
             return false;
         }
         return true;
@@ -206,9 +206,9 @@ namespace Prokyon {
     }
 
     unsigned Image::extract_component_count() const {
-        if (m_p_camera == nullptr) { throw ProkyonException(); }
+        if (m_p_camera == nullptr) { throw ImageException(); }
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageProcessingOutputFormat, 1);
-        if (p.error) { throw ProkyonException(); }
+        if (p.error) { throw ImageException(); }
         auto entry = to_unsigned(p.value.at(0));
 
         unsigned count = 0;
@@ -240,9 +240,9 @@ namespace Prokyon {
     }
 
     unsigned Image::extract_component_count_hw() const {
-        if (m_p_camera == nullptr) { throw ProkyonException(); }
+        if (m_p_camera == nullptr) { throw ImageException(); }
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageProcessingOutputFormat, 1);
-        if (p.error) { throw ProkyonException(); }
+        if (p.error) { throw ImageException(); }
         auto entry = to_unsigned(p.value.at(0));
 
         unsigned count = 0;
@@ -274,10 +274,10 @@ namespace Prokyon {
     }
 
     Image::Size Image::extract_size() const {
-        if (m_p_camera == nullptr) { throw ProkyonException(); }
+        if (m_p_camera == nullptr) { throw ImageException(); }
         unsigned COUNT = 2;
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageModeSize, COUNT);
-        if (p.error) { throw ProkyonException(); }
+        if (p.error) { throw ImageException(); }
         assert(p.value.size() == COUNT);
         assert(0 < p.value[0]);
         assert(0 < p.value[1]);
@@ -286,9 +286,9 @@ namespace Prokyon {
     }
 
     unsigned Image::extract_bits_per_component() const {
-        if (m_p_camera == nullptr) { throw ProkyonException(); }
+        if (m_p_camera == nullptr) { throw ImageException(); }
         auto p = get_numeric_parameter<int>(*m_p_camera, ParameterIdImageProcessingOutputFormat, 1);
-        if (p.error) { throw ProkyonException(); }
+        if (p.error) { throw ImageException(); }
         auto entry = to_unsigned(p.value.at(0));
 
         unsigned bits = 0;
