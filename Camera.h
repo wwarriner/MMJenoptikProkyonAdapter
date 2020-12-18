@@ -3,11 +3,14 @@
 #ifndef PROKYON_CAMERA_H
 #define PROKYON_CAMERA_H
 
-#include "CommonDef.h"
-
 #include <string>
 
+using DijSDK_Handle = void *;
+using DijSDK_CameraKey = char[33];
+
 namespace Prokyon {
+    using CameraHandle = DijSDK_Handle;
+
     class Camera {
     public:
         Camera();
